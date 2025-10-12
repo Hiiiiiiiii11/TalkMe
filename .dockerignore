@@ -1,3 +1,6 @@
+Default Docker ignore file for .NET projects
+See https://www.google.com/search?q=https://docs.docker.com/engine/reference/builder/%23dockerignore-file
+Exclude common dev tools and configuration
 **/.classpath
 **/.dockerignore
 **/.env
@@ -8,14 +11,14 @@
 **/.toolstarget
 **/.vs
 **/.vscode
-**/*.*proj.user
-**/*.dbmdl
-**/*.jfm
+**/.proj.user
+**/.dbmdl
+**/.jfm
 **/azds.yaml
 **/bin
 **/charts
-**/docker-compose*
-**/Dockerfile*
+*/docker-compose
+*/Dockerfile
 **/node_modules
 **/npm-debug.log
 **/obj
@@ -23,8 +26,15 @@
 **/values.dev.yaml
 LICENSE
 README.md
-!**/.gitignore
+
+Allowlist specific files in .git folder
+!/.gitignore
 !.git/HEAD
 !.git/config
 !.git/packed-refs
-!.git/refs/heads/**
+!.git/refs/heads/
+
+Exclude specific deployment artifacts
+certs/
+www/
+sql_data/
