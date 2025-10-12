@@ -1,6 +1,4 @@
-﻿version: '3.8'
-
-services:
+﻿services:
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -27,7 +25,7 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;
+      - ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;
     depends_on:
       - db
     networks:
@@ -41,7 +39,7 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;
+      - ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;
     depends_on:
       - db
     networks:
@@ -55,7 +53,7 @@ services:
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__DefaultConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;
+      - ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;
     depends_on:
       - db
     networks:
