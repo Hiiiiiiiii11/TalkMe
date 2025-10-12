@@ -1,4 +1,6 @@
-﻿services:
+﻿version: '3.8'
+
+services:
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -7,9 +9,9 @@
       - "80:80"
       - "443:443"
     volumes:
-       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-       - /etc/letsencrypt:/etc/letsencrypt:ro
-       - /var/www/certbot:/var/www/certbot:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/letsencrypt:ro
+      - ./www:/var/www/certbot:ro
     depends_on:
       - chatapi
       - notificationapi
@@ -64,8 +66,8 @@
     container_name: sqlserver
     restart: always
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=Your_strong_password123
+      ACCEPT_EULA: 'Y'
+      SA_PASSWORD: 'Your_strong_password123'
     ports:
       - "1433:1433"
     volumes:
@@ -76,22 +78,9 @@
   certbot:
     image: certbot/certbot
     container_name: certbot
-    depends_on:
-      - nginx
     volumes:
       - ./certs:/etc/letsencrypt
       - ./www:/var/www/certbot
-    entrypoint: >
-      sh -c "certbot certonly --webroot
-      -w /var/www/certbot
-      -d chat.fastchat1005.xyz
-      -d notification.fastchat1005.xyz
-      -d user.fastchat1005.xyz
-      --email hqhuyzzz012@gmail.com
-      --agree-tos
-      --no-eff-email
-      --non-interactive
-      --verbose"
 
 networks:
   backend:
