@@ -11,9 +11,12 @@
       - ./certs:/etc/letsencrypt:ro
       - ./www:/var/www/certbot:ro
     depends_on:
-      - chatapi
-      - notificationapi
-      - userapi
+      chatapi:
+        condition: service_started
+      notificationapi:
+        condition: service_started
+      userapi:
+        condition: service_started
     networks:
       - backend
 
@@ -25,9 +28,10 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123,TrustServerCertificate=True;
+      - "ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - backend
 
@@ -39,9 +43,10 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123,TrustServerCertificate=True;
+      - "ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - backend
 
@@ -53,9 +58,10 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123,TrustServerCertificate=True;
+      - "ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - backend
 
@@ -71,6 +77,12 @@
       - "1433:1433"
     volumes:
       - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Your_strong_password123", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     networks:
       - backend
 
@@ -87,3 +99,4 @@ networks:
 
 volumes:
   sql_data:
+
