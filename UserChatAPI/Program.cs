@@ -18,6 +18,7 @@ using UserService.Cloudinaries;
 using UserService.Services;
 // Thêm namespace này để dùng SqlException
 using Microsoft.Data.SqlClient;
+using UserRepository.Admin;
 
 namespace ChatApi
 {
@@ -173,7 +174,7 @@ namespace ChatApi
             var app = builder.Build();
 
             // =================================================================
-            // === THAY ĐỔI QUAN TRỌNG: THÊM VÒNG LẶP RETRY KHI MIGRATE DB ===
+            // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===
             // =================================================================
             if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
@@ -182,26 +183,42 @@ namespace ChatApi
 
                 for (int i = 0; i < maxRetries; i++)
                 {
-                    using (var scope = app.Services.CreateScope())
+                    try
                     {
-                        var services = scope.ServiceProvider;
-                        try
+                        using (var scope = app.Services.CreateScope())
                         {
+                            var services = scope.ServiceProvider;
                             var dbContext = services.GetRequiredService<ChatDbContext>();
-                            dbContext.Database.Migrate();
-                            Console.WriteLine("✅ Database has been migrated successfully.");
-                            break; // Thoát vòng lặp nếu thành công
-                        }
-                        catch (SqlException ex)
-                        {
-                            Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
-                            Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"❌ An unexpected error occurred while migrating the database: {ex.Message}");
+
+                            var defaultConnStr = builder.Configuration.GetConnectionString("ChatDbConnection");
+                            var dbName = new SqlConnectionStringBuilder(defaultConnStr).InitialCatalog;
+                            var masterConnStr = defaultConnStr.Replace($"Database={dbName}", "Database=master");
+
+                            using (var connection = new SqlConnection(masterConnStr))
+                            {
+                                connection.Open();
+                                using (var command = connection.CreateCommand())
+                                {
+                                    command.CommandText = $"IF DB_ID('{dbName}') IS NULL CREATE DATABASE {dbName}";
+                                    command.ExecuteNonQuery();
+                                }
+                            }
+
+                            dbContext.Database.EnsureCreated();
+                            Console.WriteLine($"✅ Database '{dbName}' and schema have been created successfully.");
+
                             break;
                         }
+                    }
+                    catch (SqlException ex)
+                    {
+                        Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+                        Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"❌ An unexpected error occurred: {ex.Message}");
+                        break;
                     }
                 }
             }

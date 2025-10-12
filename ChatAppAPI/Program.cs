@@ -149,12 +149,10 @@ namespace ChatAppAPI
                         },
                     };
                 });
-            // --- HẾT PHẦN GIỮ NGUYÊN ---
-
             var app = builder.Build();
 
             // =================================================================
-            // === THAY ĐỔI QUAN TRỌNG: THÊM VÒNG LẶP RETRY KHI MIGRATE DB ===
+            // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===
             // =================================================================
             if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
@@ -163,16 +161,34 @@ namespace ChatAppAPI
 
                 for (int i = 0; i < maxRetries; i++)
                 {
-                    using (var scope = app.Services.CreateScope())
+                    try
                     {
-                        var services = scope.ServiceProvider;
-                        try
+                        using (var scope = app.Services.CreateScope())
                         {
+                            var services = scope.ServiceProvider;
                             var dbContext = services.GetRequiredService<UserDbContext>();
-                            dbContext.Database.Migrate();
-                            Console.WriteLine("✅ Database has been migrated successfully.");
 
-                            // Seed admin account after migration is successful
+                            // Bước 1: Tự tạo DB nếu chưa có
+                            var defaultConnStr = builder.Configuration.GetConnectionString("UserDbConnection");
+                            var dbName = new SqlConnectionStringBuilder(defaultConnStr).InitialCatalog;
+                            var masterConnStr = defaultConnStr.Replace($"Database={dbName}", "Database=master");
+
+                            using (var connection = new SqlConnection(masterConnStr))
+                            {
+                                connection.Open();
+                                using (var command = connection.CreateCommand())
+                                {
+                                    command.CommandText = $"IF DB_ID('{dbName}') IS NULL CREATE DATABASE {dbName}";
+                                    command.ExecuteNonQuery();
+                                }
+                                Console.WriteLine($"✅ Step 1/3: Database '{dbName}' created or already exists.");
+                            }
+
+                            // Bước 2: Tạo schema (các bảng)
+                            dbContext.Database.EnsureCreated();
+                            Console.WriteLine("✅ Step 2/3: Schema has been created successfully.");
+
+                            // Bước 3: Seed admin account
                             var adminSettings = services.GetRequiredService<IOptions<AdminAccountSettings>>().Value;
                             if (!dbContext.Users.Any(u => u.Email == adminSettings.Email))
                             {
@@ -187,29 +203,27 @@ namespace ChatAppAPI
                                 };
                                 dbContext.Users.Add(adminUser);
                                 dbContext.SaveChanges();
-                                Console.WriteLine("✅ Admin account has been seeded successfully.");
+                                Console.WriteLine("✅ Step 3/3: Admin account has been seeded successfully.");
                             }
 
-                            break; // Thoát vòng lặp nếu thành công
+                            break; // Thoát vòng lặp nếu tất cả thành công
                         }
-                        catch (SqlException ex)
-                        {
-                            Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
-                            Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine($"❌ An unexpected error occurred while migrating the database: {ex.Message}");
-                            // Không retry với các lỗi không mong muốn khác
-                            break;
-                        }
+                    }
+                    catch (SqlException ex)
+                    {
+                        Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+                        Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"❌ An unexpected error occurred: {ex.Message}");
+                        break;
                     }
                 }
             }
             // =================================================================
             // === KẾT THÚC THAY ĐỔI ===
             // =================================================================
-
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
