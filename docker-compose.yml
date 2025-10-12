@@ -11,12 +11,9 @@
       - ./certs:/etc/letsencrypt:ro
       - ./www:/var/www/certbot:ro
     depends_on:
-      chatapi:
-        condition: service_started
-      notificationapi:
-        condition: service_started
-      userapi:
-        condition: service_started
+      - chatapi
+      - notificationapi
+      - userapi
     networks:
       - backend
 
@@ -30,8 +27,7 @@
       - ASPNETCORE_ENVIRONMENT=Production
       - "ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - backend
 
@@ -45,8 +41,7 @@
       - ASPNETCORE_ENVIRONMENT=Production
       - "ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - backend
 
@@ -60,8 +55,7 @@
       - ASPNETCORE_ENVIRONMENT=Production
       - "ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     networks:
       - backend
 
@@ -77,12 +71,6 @@
       - "1433:1433"
     volumes:
       - sql_data:/var/opt/mssql
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P Your_strong_password123 -Q 'SELECT 1' || exit 1"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
     networks:
       - backend
 
