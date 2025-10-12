@@ -25,7 +25,7 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;
+      - ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123,TrustServerCertificate=True;
     depends_on:
       - db
     networks:
@@ -39,7 +39,7 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;
+      - ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123,TrustServerCertificate=True;
     depends_on:
       - db
     networks:
@@ -53,7 +53,7 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
-      - ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;
+      - ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123,TrustServerCertificate=True;
     depends_on:
       - db
     networks:
