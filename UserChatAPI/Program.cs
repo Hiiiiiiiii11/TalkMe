@@ -1,6 +1,4 @@
-﻿
-
-using ChatAppAPI.Jwt;
+﻿using ChatAppAPI.Jwt;
 using ChatRepository.Data;
 using ChatRepository.Repositories;
 using ChatService.Implement;
@@ -18,8 +16,8 @@ using Share.Services;
 using System.Text;
 using UserService.Cloudinaries;
 using UserService.Services;
-
-
+// Thêm namespace này để dùng SqlException
+using Microsoft.Data.SqlClient;
 
 namespace ChatApi
 {
@@ -29,13 +27,8 @@ namespace ChatApi
         {
             var builder = WebApplication.CreateBuilder(args);
 
-
-            //builder.Services.AddDbContext<UserDbContext>(options =>
-            //options.UseSqlServer(builder.Configuration.GetConnectionString("UserDbConnection")));
             builder.Services.AddDbContext<ChatDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbConnection")));
-            //builder.Services.AddDbContext<NotificationDbContext>(options =>
-            //options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDbConnection")));
 
             builder.Services.Configure<CloudinarySettings>(
             builder.Configuration.GetSection("CloudinarySettings"));
@@ -54,19 +47,16 @@ namespace ChatApi
             builder.Services.AddScoped<IMessageService, MessageService>();
             builder.Services.AddScoped<IParticipantRepository, ParticipantRepository>();
             builder.Services.AddScoped<IParticipantService, ParticipantService>();
-            builder.Services.AddScoped<ICurrentUserService,CurrentUserService>();
+            builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
             builder.Services.AddScoped<IUploadPhotoService, UploadPhotoService>();
 
             builder.Services.AddHttpContextAccessor();
-
-
 
             builder.Services.AddControllers()
                 .AddJsonOptions(options =>
                 {
                     options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
                 });
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
 
             // Thêm gRPC
@@ -75,7 +65,6 @@ namespace ChatApi
             // Hàm lấy URL gRPC (ưu tiên environment variable, fallback appsettings.json)
             string GetGrpcUrl(string key)
             {
-                // key ví dụ: "UserApi" -> env var: "USERAPI_URL"
                 var envKey = key.Replace("Api", "").ToUpper() + "_URL";
                 var url = Environment.GetEnvironmentVariable(envKey);
                 if (!string.IsNullOrEmpty(url))
@@ -86,7 +75,6 @@ namespace ChatApi
                 return cfg;
             }
 
-            // Đăng ký gRPC clients
             builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
             {
                 o.Address = new Uri(GetGrpcUrl("UserApi"));
@@ -96,9 +84,6 @@ namespace ChatApi
                 o.Address = new Uri(GetGrpcUrl("NotificationApi"));
             });
 
-
-
-            // Configure Swagger to generate API documentation
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -131,7 +116,6 @@ namespace ChatApi
                     }
                 });
             });
-            // CORS policy to allow all origins, methods, and headers
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policyBuilder =>
@@ -171,12 +155,9 @@ namespace ChatApi
                     {
                         OnChallenge = async context =>
                         {
-                            // Ngăn ASP.NET Core tự gửi 401 mặc định
                             context.HandleResponse();
-
                             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                             context.Response.ContentType = "application/json";
-
                             await context.Response.WriteAsync(
                                 "{\"message\":\"Unauthorized - Token is missing or invalid.\"}");
                         },
@@ -184,63 +165,63 @@ namespace ChatApi
                         {
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
                             context.Response.ContentType = "application/json";
-
                             await context.Response.WriteAsync(
                                 "{\"message\":\"Forbidden - You do not have permission to access this resource.\"}");
                         },
                     };
-
                 });
             var app = builder.Build();
-            if (app.Environment.IsEnvironment("Docker")) // hoặc IsProduction()
+
+            // =================================================================
+            // === THAY ĐỔI QUAN TRỌNG: THÊM VÒNG LẶP RETRY KHI MIGRATE DB ===
+            // =================================================================
+            if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
-                using (var scope = app.Services.CreateScope())
+                int maxRetries = 10;
+                int delayInSeconds = 5;
+
+                for (int i = 0; i < maxRetries; i++)
                 {
-                    var services = scope.ServiceProvider;
-
-                    try
+                    using (var scope = app.Services.CreateScope())
                     {
-                        var dbContext = services.GetRequiredService<ChatDbContext>();
-
-                        // Chỉ migrate nếu chạy trong Docker hoặc Production
-                        if (app.Environment.IsEnvironment("Docker") || app.Environment.IsProduction())
+                        var services = scope.ServiceProvider;
+                        try
                         {
+                            var dbContext = services.GetRequiredService<ChatDbContext>();
                             dbContext.Database.Migrate();
                             Console.WriteLine("✅ Database has been migrated successfully.");
+                            break; // Thoát vòng lặp nếu thành công
+                        }
+                        catch (SqlException ex)
+                        {
+                            Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+                            Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"❌ An unexpected error occurred while migrating the database: {ex.Message}");
+                            break;
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"❌ An error occurred while migrating the database: {ex.Message}");
-                        // Bạn có thể log thêm stacktrace nếu cần
-                        Console.WriteLine(ex.StackTrace);
-                    }
                 }
-
             }
-
+            // =================================================================
+            // === KẾT THÚC THAY ĐỔI ===
+            // =================================================================
 
             app.MapGrpcService<ConversationGrpcServiceImpl>();
             app.MapGrpcService<MessageGrpcServiceImpl>();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment() || app.Environment.IsProduction() || app.Environment.IsEnvironment("Docker"))
             {
-                app.UseDeveloperExceptionPage();
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
             app.UseCors("AllowAll");
-
             app.UseHttpsRedirection();
-
             app.UseAuthentication();
-
             app.UseAuthorization();
-
-
             app.MapControllers();
-
             app.Run();
         }
     }

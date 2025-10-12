@@ -1,5 +1,4 @@
-﻿
-using ChatAppAPI.Jwt;
+﻿using ChatAppAPI.Jwt;
 using GrpcService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +9,8 @@ using NotificationRepository.Repositories;
 using NotificationService.Implement;
 using NotificationService.Services;
 using System.Text;
+// Thêm namespace này để dùng SqlException
+using Microsoft.Data.SqlClient;
 
 namespace NotificationApi
 {
@@ -27,12 +28,10 @@ namespace NotificationApi
             builder.Services.AddControllers();
             builder.Services.AddControllers()
               .AddJsonOptions(options =>
-           {
-           options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-           });
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+              {
+                  options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+              });
             builder.Services.AddEndpointsApiExplorer();
-            // Configure Swagger to generate API documentation
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -65,7 +64,6 @@ namespace NotificationApi
                     }
                 });
             });
-            // CORS policy to allow all origins, methods, and headers
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policyBuilder =>
@@ -75,27 +73,22 @@ namespace NotificationApi
                                  .AllowAnyHeader();
                 });
             });
-            //đăng ký gRPC client
             builder.Services.AddGrpc();
             var grpcSettings = builder.Configuration.GetSection("GrpcServices");
 
             string GetGrpcUrl(string key)
             {
-                // Lấy từ env var trước, nếu có thì dùng
                 var envKey = key.Replace("Api", "").ToUpper() + "_URL"; // USERAPI_URL, CHATAPI_URL, NOTIFICATIONAPI_URL
                 var url = Environment.GetEnvironmentVariable(envKey);
                 if (!string.IsNullOrEmpty(url))
                     return url;
 
-                // Fallback sang appsettings.json
                 var cfg = grpcSettings[key];
                 if (string.IsNullOrEmpty(cfg))
                     throw new Exception($"GrpcService URL for {key} not configured");
-
                 return cfg;
             }
 
-            // Thay vì hardcode
             builder.Services.AddGrpcClient<MessageGrpcService.MessageGrpcServiceClient>(o =>
             {
                 o.Address = new Uri(GetGrpcUrl("ChatApi"));
@@ -111,7 +104,6 @@ namespace NotificationApi
                 o.Address = new Uri(GetGrpcUrl("UserApi"));
             });
 
-            //dang ký Jwt
             builder.Services.Configure<JwtSettings>(
             builder.Configuration.GetSection("Jwt")
             );
@@ -139,12 +131,9 @@ namespace NotificationApi
                     {
                         OnChallenge = async context =>
                         {
-                            // Ngăn ASP.NET Core tự gửi 401 mặc định
                             context.HandleResponse();
-
                             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                             context.Response.ContentType = "application/json";
-
                             await context.Response.WriteAsync(
                                 "{\"message\":\"Unauthorized - Token is missing or invalid.\"}");
                         },
@@ -152,7 +141,6 @@ namespace NotificationApi
                         {
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
                             context.Response.ContentType = "application/json";
-
                             await context.Response.WriteAsync(
                                 "{\"message\":\"Forbidden - You do not have permission to access this resource.\"}");
                         },
@@ -160,54 +148,57 @@ namespace NotificationApi
 
                 });
 
-
-
             var app = builder.Build();
-            if (app.Environment.IsEnvironment("Docker")) // hoặc IsProduction()
+
+            // =================================================================
+            // === THAY ĐỔI QUAN TRỌNG: THÊM VÒNG LẶP RETRY KHI MIGRATE DB ===
+            // =================================================================
+            if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
-                using (var scope = app.Services.CreateScope())
+                int maxRetries = 10;
+                int delayInSeconds = 5;
+
+                for (int i = 0; i < maxRetries; i++)
                 {
-                    var services = scope.ServiceProvider;
-
-                    try
+                    using (var scope = app.Services.CreateScope())
                     {
-                        var dbContext = services.GetRequiredService<NotificationDbContext>();
-
-                        // Chỉ migrate nếu chạy trong Docker hoặc Production
-                        if (app.Environment.IsEnvironment("Docker") || app.Environment.IsProduction())
+                        var services = scope.ServiceProvider;
+                        try
                         {
+                            var dbContext = services.GetRequiredService<NotificationDbContext>();
                             dbContext.Database.Migrate();
                             Console.WriteLine("✅ Database has been migrated successfully.");
+                            break; // Thoát vòng lặp nếu thành công
+                        }
+                        catch (SqlException ex)
+                        {
+                            Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+                            Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"❌ An unexpected error occurred while migrating the database: {ex.Message}");
+                            break;
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"❌ An error occurred while migrating the database: {ex.Message}");
-                        // Bạn có thể log thêm stacktrace nếu cần
-                        Console.WriteLine(ex.StackTrace);
-                    }
                 }
-
             }
-            //đăng ký gRPC service
+            // =================================================================
+            // === KẾT THÚC THAY ĐỔI ===
+            // =================================================================
+
             app.MapGrpcService<NotificationGrpcServiceImpl>();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment() || app.Environment.IsProduction() || app.Environment.IsEnvironment("Docker"))
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
             app.UseCors("AllowAll");
-
             app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
-
-
-
             app.MapControllers();
-
             app.Run();
         }
     }

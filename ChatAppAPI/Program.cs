@@ -1,9 +1,6 @@
-﻿
-using ChatAppAPI.Jwt;
+﻿using ChatAppAPI.Jwt;
 using CloudinaryDotNet;
-using Grpc.Net.Client;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -18,6 +15,8 @@ using UserRepository.VerifyEmail;
 using UserService.Cloudinaries;
 using UserService.Repositories;
 using UserService.Services;
+// Thêm namespace này để dùng SqlException
+using Microsoft.Data.SqlClient;
 
 namespace ChatAppAPI
 {
@@ -27,14 +26,9 @@ namespace ChatAppAPI
         {
             var builder = WebApplication.CreateBuilder(args);
 
-
+            // --- PHẦN NÀY GIỮ NGUYÊN ---
             builder.Services.AddDbContext<UserDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("UserDbConnection")));
-            //builder.Services.AddDbContext<ChatDbContext>(options =>
-            //options.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbConnection")));
-            //builder.Services.AddDbContext<NotificationDbContext>(options =>
-            //options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDbConnection")));
-
 
             builder.Services.Configure<CloudinarySettings>(
             builder.Configuration.GetSection("CloudinarySettings"));
@@ -50,16 +44,13 @@ namespace ChatAppAPI
 
             builder.Services.AddSingleton(provider =>
             {
-            var config = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
-            var account = new Account(config.CloudName, config.ApiKey, config.ApiSecret);
-            return new Cloudinary(account);
+                var config = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
+                var account = new Account(config.CloudName, config.ApiKey, config.ApiSecret);
+                return new Cloudinary(account);
             });
 
-            // Add services to the container.
-            //builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
-            //builder.Services.AddScoped<INotificationService, NotificationService.Services.NotificationService>();
             builder.Services.AddScoped<IUserRepository, UserRepository.Repositories.UserRepository>();
-            builder.Services.AddScoped<IUserService,UserService.Services.UserService>();
+            builder.Services.AddScoped<IUserService, UserService.Services.UserService>();
             builder.Services.AddScoped<IAuthenticationRepository, AuthenticationRepository>();
             builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
             builder.Services.AddScoped<IUploadPhotoService, UploadPhotoService>();
@@ -67,40 +58,13 @@ namespace ChatAppAPI
             builder.Services.AddScoped<IEmailVerificationService, EmailVerificationService>();
             builder.Services.AddScoped<IPasswordResetTokenRepository, PasswordResetTokenRepository>();
             builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
-            //builder.Services.AddScoped<IMessageRepository, MessageRepository>();
-            //builder.Services.AddScoped<IConversationRepository, ConversationRepository>();
-            //builder.Services.AddScoped<IConversationService, ConversationService>();
-            //builder.Services.AddScoped<IMessageService, MessageService>();
-            //builder.Services.AddScoped<IParticipantRepository, ParticipantRepository>();
-            //builder.Services.AddScoped<IParticipantService, ParticipantService>();
-            //builder.Services.AddScoped<UserGrpcClientService>();
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
-
-
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-
-            // Thêm gRPC
             builder.Services.AddGrpc();
-            //builder.WebHost.ConfigureKestrel(options =>
-            //{
-            //    // HTTP
-            //    options.ListenAnyIP(8080); // chỉ HTTP
-            //                               // gRPC (có thể giữ)
-            //    options.ListenAnyIP(5001, o => o.Protocols = HttpProtocols.Http2);
-            //    // Xóa hoặc comment HTTPS
-            //    // options.ListenAnyIP(7216, o =>
-            //    // {
-            //    //     o.Protocols = HttpProtocols.Http1AndHttp2;
-            //    //     o.UseHttps();
-            //    // });
-            //});
 
-
-            // Configure Swagger to generate API documentation
             builder.Services.AddSwaggerGen(c =>
             {
                 c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
@@ -112,8 +76,8 @@ namespace ChatAppAPI
                 c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
                     Name = "Authorization",
-                    Type = SecuritySchemeType.Http, 
-                    Scheme = "bearer",               
+                    Type = SecuritySchemeType.Http,
+                    Scheme = "bearer",
                     BearerFormat = "JWT",
                     In = ParameterLocation.Header,
                     Description = "Enter JWT."
@@ -133,7 +97,6 @@ namespace ChatAppAPI
                     }
                 });
             });
-            // CORS policy to allow all origins, methods, and headers
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policyBuilder =>
@@ -144,8 +107,6 @@ namespace ChatAppAPI
                 });
             });
 
-
-            //dang ký Jwt
             builder.Services.Configure<JwtSettings>(
             builder.Configuration.GetSection("Jwt")
             );
@@ -173,12 +134,9 @@ namespace ChatAppAPI
                     {
                         OnChallenge = async context =>
                         {
-                            // Ngăn ASP.NET Core tự gửi 401 mặc định
                             context.HandleResponse();
-
                             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                             context.Response.ContentType = "application/json";
-
                             await context.Response.WriteAsync(
                                 "{\"message\":\"Unauthorized - Token is missing or invalid.\"}");
                         },
@@ -186,107 +144,85 @@ namespace ChatAppAPI
                         {
                             context.Response.StatusCode = StatusCodes.Status403Forbidden;
                             context.Response.ContentType = "application/json";
-
                             await context.Response.WriteAsync(
                                 "{\"message\":\"Forbidden - You do not have permission to access this resource.\"}");
                         },
                     };
-
                 });
-
-            //dang ký Cloudinary
-            builder.Services.Configure<CloudinarySettings>(
-            builder.Configuration.GetSection("CloudinarySettings")
-            );
-
-            builder.Services.AddSingleton(provider =>
-            {
-                var config = provider.GetRequiredService<IOptions<CloudinarySettings>>().Value;
-                return new CloudinaryDotNet.Cloudinary(new Account(
-                    config.CloudName,
-                    config.ApiKey,
-                    config.ApiSecret
-                ));
-            });
-
+            // --- HẾT PHẦN GIỮ NGUYÊN ---
 
             var app = builder.Build();
 
-            app.MapGrpcService<UserGrpcServiceImpl>();
-
-            //seeding admin accouunt
-            using (var scope = app.Services.CreateScope())
+            // =================================================================
+            // === THAY ĐỔI QUAN TRỌNG: THÊM VÒNG LẶP RETRY KHI MIGRATE DB ===
+            // =================================================================
+            if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
-                var context = scope.ServiceProvider.GetRequiredService<UserDbContext>();
-                var adminSettings = scope.ServiceProvider
-                                         .GetRequiredService<IOptions<AdminAccountSettings>>()
-                                         .Value;
+                int maxRetries = 10;
+                int delayInSeconds = 5;
 
-                // Kiểm tra nếu chưa có admin
-                if (!context.Users.Any(u => u.Email == adminSettings.Email))
+                for (int i = 0; i < maxRetries; i++)
                 {
-                    var hashedPassword = BCrypt.Net.BCrypt.HashPassword(adminSettings.Password);
-                    var adminUser = new User
+                    using (var scope = app.Services.CreateScope())
                     {
-                        Id = Guid.NewGuid(),
-                        Email = adminSettings.Email,
-                        PasswordHash = hashedPassword,
-                        DisplayName = adminSettings.DisplayName,
-                        IsActive = true
-                    };
-
-                    context.Users.Add(adminUser);
-                    context.SaveChanges();
-                }
-            }
-            if (app.Environment.IsEnvironment("Docker")) // hoặc IsProduction()
-            {
-                using (var scope = app.Services.CreateScope())
-                {
-                    var services = scope.ServiceProvider;
-
-                    try
-                    {
-                        var dbContext = services.GetRequiredService<UserDbContext>();
-
-                        // Chỉ migrate nếu chạy trong Docker hoặc Production
-                        if (app.Environment.IsEnvironment("Docker") || app.Environment.IsProduction())
+                        var services = scope.ServiceProvider;
+                        try
                         {
+                            var dbContext = services.GetRequiredService<UserDbContext>();
                             dbContext.Database.Migrate();
                             Console.WriteLine("✅ Database has been migrated successfully.");
+
+                            // Seed admin account after migration is successful
+                            var adminSettings = services.GetRequiredService<IOptions<AdminAccountSettings>>().Value;
+                            if (!dbContext.Users.Any(u => u.Email == adminSettings.Email))
+                            {
+                                var hashedPassword = BCrypt.Net.BCrypt.HashPassword(adminSettings.Password);
+                                var adminUser = new User
+                                {
+                                    Id = Guid.NewGuid(),
+                                    Email = adminSettings.Email,
+                                    PasswordHash = hashedPassword,
+                                    DisplayName = adminSettings.DisplayName,
+                                    IsActive = true
+                                };
+                                dbContext.Users.Add(adminUser);
+                                dbContext.SaveChanges();
+                                Console.WriteLine("✅ Admin account has been seeded successfully.");
+                            }
+
+                            break; // Thoát vòng lặp nếu thành công
+                        }
+                        catch (SqlException ex)
+                        {
+                            Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+                            Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"❌ An unexpected error occurred while migrating the database: {ex.Message}");
+                            // Không retry với các lỗi không mong muốn khác
+                            break;
                         }
                     }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"❌ An error occurred while migrating the database: {ex.Message}");
-                        // Bạn có thể log thêm stacktrace nếu cần
-                        Console.WriteLine(ex.StackTrace);
-                    }
                 }
-
             }
-
-            //
-
-
+            // =================================================================
+            // === KẾT THÚC THAY ĐỔI ===
+            // =================================================================
 
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
 
+            app.UseCors("AllowAll");
             app.UseHttpsRedirection();
-
             app.UseAuthentication();
-
             app.UseAuthorization();
-
-
             app.MapControllers();
-
             app.Run();
         }
     }
