@@ -38,13 +38,18 @@ jobs:
             # Tải về phiên bản code mới nhất từ nhánh main
             echo "🚚 Pulling latest code from main branch..."
             git pull origin main
+
+            # Dừng và xóa các container cũ để chuẩn bị cho bản build mới
+            echo "🛑 Stopping and removing old containers..."
+            docker-compose down
             
             # Build lại và khởi động các container Docker
             echo "🚀 Building and restarting Docker containers..."
             docker-compose up --build -d
             
-            # (Tùy chọn) Dọn dẹp các image Docker cũ không còn dùng đến để tiết kiệm dung lượng
-            echo "🧹 Pruning old Docker images..."
-            docker image prune -f
+            # Dọn dẹp toàn bộ hệ thống Docker (container, network, image cũ) để tiết kiệm dung lượng
+            echo "🧹 Pruning Docker system..."
+            docker system prune -af
             
             echo "✅ Deployment successful!"
+
