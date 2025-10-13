@@ -150,6 +150,7 @@ namespace ChatAppAPI
                     };
                 });
             var app = builder.Build();
+            app.MapGrpcService<UserGrpcServiceImpl>();
 
             // =================================================================
             // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===

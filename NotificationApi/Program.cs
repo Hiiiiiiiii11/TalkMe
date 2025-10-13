@@ -91,17 +91,17 @@ namespace NotificationApi
 
             builder.Services.AddGrpcClient<MessageGrpcService.MessageGrpcServiceClient>(o =>
             {
-                o.Address = new Uri(GetGrpcUrl("ChatApi"));
+                o.Address = new Uri("https://chat.fastchat1005.xyz");
             });
 
             builder.Services.AddGrpcClient<ConversationGrpcService.ConversationGrpcServiceClient>(o =>
             {
-                o.Address = new Uri(GetGrpcUrl("ChatApi"));
+                o.Address = new Uri("https://chat.fastchat1005.xyz");
             });
 
             builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
             {
-                o.Address = new Uri(GetGrpcUrl("UserApi"));
+                o.Address = new Uri("https://user.fastchat1005.xyz");
             });
 
             builder.Services.Configure<JwtSettings>(

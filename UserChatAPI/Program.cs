@@ -78,11 +78,11 @@ namespace ChatApi
 
             builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
             {
-                o.Address = new Uri(GetGrpcUrl("UserApi"));
+                o.Address = new Uri("https://user.fastchat1005.xyz");
             });
             builder.Services.AddGrpcClient<NotificationGrpcService.NotificationGrpcServiceClient>(o =>
             {
-                o.Address = new Uri(GetGrpcUrl("NotificationApi"));
+                o.Address = new Uri("https://notification.fastchat1005.xyz");
             });
 
             builder.Services.AddSwaggerGen(c =>
