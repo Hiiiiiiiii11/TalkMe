@@ -1,0 +1,50 @@
+# Tên của workflow, sẽ hiển thị trong tab "Actions" trên GitHub
+name: Deploy to EC2
+
+# Điều kiện kích hoạt workflow: chạy khi có push lên nhánh 'main'
+on:
+  push:
+    branches:
+      - main
+
+# Các công việc (jobs) sẽ được thực hiện
+jobs:
+  deploy:
+    # Tên của job
+    name: Deploy
+    # Chạy trên một máy ảo Ubuntu mới nhất do GitHub cung cấp
+    runs-on: ubuntu-latest
+
+    # Các bước thực hiện
+    steps:
+      # Bước 1: Lấy mã nguồn từ repository về máy ảo runner
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Bước 2: Thực thi các lệnh trên server EC2 của bạn qua SSH
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          # Các thông tin bí mật để kết nối SSH
+          # Sẽ được cấu hình trong phần Settings của repo GitHub
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          # Script để chạy trên server EC2
+          script: |
+            # Đi vào thư mục dự án
+            cd ~/ChatAppAPI
+            
+            # Tải về phiên bản code mới nhất từ nhánh main
+            echo "🚚 Pulling latest code from main branch..."
+            git pull origin main
+            
+            # Build lại và khởi động các container Docker
+            echo "🚀 Building and restarting Docker containers..."
+            docker-compose up --build -d
+            
+            # (Tùy chọn) Dọn dẹp các image Docker cũ không còn dùng đến để tiết kiệm dung lượng
+            echo "🧹 Pruning old Docker images..."
+            docker image prune -f
+            
+            echo "✅ Deployment successful!"
