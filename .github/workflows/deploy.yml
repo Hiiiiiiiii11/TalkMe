@@ -54,9 +54,5 @@ jobs:
             # Build lại và khởi động các container Docker
             echo "🚀 Building and restarting Docker containers..."
             docker-compose up --build -d
-            
-            # Dọn dẹp toàn bộ hệ thống Docker (container, network, image cũ) để tiết kiệm dung lượng
-            echo "🧹 Pruning Docker system..."
-            docker system prune -af
-            
+  
             echo "✅ Deployment successful!"
