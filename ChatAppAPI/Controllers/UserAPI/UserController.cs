@@ -57,8 +57,15 @@ namespace ChatAppAPI.Controllers.UserAPI
         [HttpGet]
         public async Task<IActionResult> GetAllUsers()
         {
-            var users = await _userService.GetAllUsersAsync();
-            return Ok(users);
+            try
+            {
+                var users = await _userService.GetAllUsersAsync();
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
         [Authorize]
         [HttpPut("{id}")]
@@ -96,17 +103,37 @@ namespace ChatAppAPI.Controllers.UserAPI
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(Guid id)
         {
-            await _userService.DeleteUserAsync(id);
-            return Ok(new { message = "User deleted successfully." });
+            try
+            {
+                var user = await _userService.GetUserByIdAsync(id);
+                await _userService.DeleteUserAsync(id);
+                return Ok(new { message = "User deleted successfully." });
+            }
+            catch (KeyNotFoundException)
+            {
+                return NotFound(new { message = "User not found." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("search")]
         public async Task<IActionResult> SearchUsers([FromBody] SearchUserRequest request)
         {
-            if (string.IsNullOrEmpty(request.DisplayName))
-                return BadRequest(new { message = "Search term is required." });
-            var users = await _userService.SearchUsersAsync(request.DisplayName);
-            return Ok(users);
+            try
+            {
+                if (string.IsNullOrEmpty(request.DisplayName))
+                    return BadRequest(new { message = "Search term is required." });
+                var users = await _userService.SearchUsersAsync(request.DisplayName);
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+               
         }
         [Authorize(Roles = "Admin")]
         [HttpPut("unactive/{id}")]

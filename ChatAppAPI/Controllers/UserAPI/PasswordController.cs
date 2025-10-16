@@ -19,15 +19,38 @@ namespace ChatAppAPI.Controllers.UserAPI
         [HttpPost("request")]
         public async Task<IActionResult> RequestReset([FromQuery] PasswordResetRequest request)
         {
-            await _resetService.RequestPasswordResetAsync(request);
-            return Ok(new { message = "OTP sent to your email." });
+            try
+            {
+                if (string.IsNullOrEmpty(request.Email))
+                {
+                    return BadRequest(new { message = "Email is required." });
+                }
+                await _resetService.RequestPasswordResetAsync(request);
+                return Ok(new { message = "OTP sent to your email." });
+            }
+            catch
+            {
+                return BadRequest(new { message = "Invalid email format." });
+            }
         }
         [Authorize]
         [HttpPost("confirm")]
         public async Task<IActionResult> ConfirmReset([FromBody] ConfirmResetPasswordRequest request)
         {
-            await _resetService.ResetPasswordAsync(request);
-            return Ok(new { message = "Password updated successfully." });
+            try
+            {
+                if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Otp) || string.IsNullOrEmpty(request.NewPassword))
+                {
+                    return BadRequest(new { message = "Email, code and new password are required." });
+                }
+                await _resetService.ResetPasswordAsync(request);
+                return Ok(new { message = "Password updated successfully." });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
         }
     }
 }

@@ -19,16 +19,38 @@ namespace ChatAppAPI.Controllers.UserAPI
         [HttpPost("send-otp")]
         public async Task<IActionResult> SendOtp([FromQuery] string email)
         {
-            await _emailVerificationService.SendVerificationCodeAsync(email);
-            return Ok(new { message = "OTP sent to your email." });
+            try
+            {
+                if (string.IsNullOrEmpty(email))
+                {
+                    return BadRequest(new { message = "Email is required." });
+                }
+                await _emailVerificationService.SendVerificationCodeAsync(email);
+                return Ok(new { message = "OTP sent to your email." });
+            }
+            catch
+            {
+                return BadRequest(new { message = "Invalid email format." });
+            }
         }
 
         [HttpPost("verify-otp")]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOTPRequest request)
         {
-            var result = await _emailVerificationService.VerifyCodeAsync(request);
-            if (!result) return BadRequest(new { message = "Invalid or expired code." });
-            return Ok(new { message = "Email verified successfully." });
+            try
+            {
+                if (string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Code))
+                {
+                    return BadRequest(new { message = "Email and code are required." });
+                }
+                var result = await _emailVerificationService.VerifyCodeAsync(request);
+                if (!result) return BadRequest(new { message = "Invalid or expired code." });
+                return Ok(new { message = "Email verified successfully." });
+            }
+            catch
+            {
+                return BadRequest(new { message = "Invalid request." });
+            }
         }
     }
 }
