@@ -27,7 +27,7 @@ namespace NotificationApi
                 var pfxPassword = builder.Configuration["Kestrel:CertificatePassword"];
                 builder.WebHost.ConfigureKestrel(options =>
                 {
-                    options.ListenAnyIP(80, o => o.Protocols = HttpProtocols.Http1);
+                    options.ListenAnyIP(8080, o => o.Protocols = HttpProtocols.Http1);
                     options.ListenAnyIP(443, o =>
                     {
                         o.Protocols = HttpProtocols.Http2;
