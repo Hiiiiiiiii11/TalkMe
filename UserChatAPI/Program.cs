@@ -21,6 +21,7 @@ using Microsoft.Data.SqlClient;
 using UserRepository.Admin;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace ChatApi
 {
@@ -29,6 +30,11 @@ namespace ChatApi
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            });
             if (builder.Environment.IsProduction())
             {
                 var pfxPassword = builder.Configuration["Kestrel:CertificatePassword"];
