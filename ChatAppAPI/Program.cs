@@ -18,6 +18,7 @@ using UserService.Services;
 // Thêm namespace này để dùng SqlException
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.HttpOverrides;
 
 namespace ChatAppAPI
 {
@@ -26,6 +27,10 @@ namespace ChatAppAPI
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            });
             if (builder.Environment.IsProduction())
             {
                 var pfxPassword = builder.Configuration["Kestrel:CertificatePassword"];
