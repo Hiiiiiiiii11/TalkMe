@@ -19,6 +19,7 @@ using UserService.Services;
 // Thêm namespace này để dùng SqlException
 using Microsoft.Data.SqlClient;
 using UserRepository.Admin;
+using System.Security.Cryptography.X509Certificates;
 
 namespace ChatApi
 {
@@ -63,27 +64,41 @@ namespace ChatApi
             // Thêm gRPC
             builder.Services.AddGrpc();
 
-            // Hàm lấy URL gRPC (ưu tiên environment variable, fallback appsettings.json)
-            string GetGrpcUrl(string key)
-            {
-                var envKey = key.Replace("Api", "").ToUpper() + "_URL";
-                var url = Environment.GetEnvironmentVariable(envKey);
-                if (!string.IsNullOrEmpty(url))
-                    return url;
+            var userServiceUrl = builder.Environment.IsProduction()
+                ? "https://userapi:443"
+                : "https://localhost:7216"; // Cập nhật cổng dev cho UserAPI
+            var notificationServiceUrl = builder.Environment.IsProduction()
+                ? "https://notificationapi:443"
+                : "https://localhost:7292"; // Cập nhật cổng dev cho NotificationAPI
 
-                // fallback appsettings.json
-                var cfg = builder.Configuration.GetSection("GrpcServices")[key];
-                return cfg;
+            if (builder.Environment.IsProduction())
+            {
+                var handler = new HttpClientHandler();
+                var caCert = new X509Certificate2("/https/certs/ca.crt");
+                handler.ServerCertificateCustomValidationCallback = (message, serverCert, chain, errors) =>
+                {
+                    if (serverCert == null) return false;
+                    using var customChain = new X509Chain();
+                    customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                    customChain.ChainPolicy.CustomTrustStore.Add(caCert);
+                    customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                    return customChain.Build(serverCert);
+                };
+
+                builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
+                    o.Address = new Uri(userServiceUrl))
+                    .ConfigurePrimaryHttpMessageHandler(() => handler);
+                builder.Services.AddGrpcClient<NotificationGrpcService.NotificationGrpcServiceClient>(o =>
+                    o.Address = new Uri(notificationServiceUrl))
+                    .ConfigurePrimaryHttpMessageHandler(() => handler);
             }
-
-            builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
+            else // Cấu hình cho local dev
             {
-                o.Address = new Uri("https://user.fastchat1005.xyz");
-            });
-            builder.Services.AddGrpcClient<NotificationGrpcService.NotificationGrpcServiceClient>(o =>
-            {
-                o.Address = new Uri("https://notification.fastchat1005.xyz");
-            });
+                builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
+                   o.Address = new Uri(userServiceUrl));
+                builder.Services.AddGrpcClient<NotificationGrpcService.NotificationGrpcServiceClient>(o =>
+                    o.Address = new Uri(notificationServiceUrl));
+            }
 
             builder.Services.AddSwaggerGen(c =>
             {

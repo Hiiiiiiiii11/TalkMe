@@ -11,6 +11,8 @@ using NotificationService.Services;
 using System.Text;
 // Thêm namespace này để dùng SqlException
 using Microsoft.Data.SqlClient;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using System.Security.Cryptography.X509Certificates;
 
 namespace NotificationApi
 {
@@ -19,6 +21,20 @@ namespace NotificationApi
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+
+            if (builder.Environment.IsProduction())
+            {
+                var pfxPassword = builder.Configuration["Kestrel:CertificatePassword"];
+                builder.WebHost.ConfigureKestrel(options =>
+                {
+                    options.ListenAnyIP(80, o => o.Protocols = HttpProtocols.Http1);
+                    options.ListenAnyIP(443, o =>
+                    {
+                        o.Protocols = HttpProtocols.Http2;
+                        o.UseHttps("/https/certs/chatapi.pfx", pfxPassword);
+                    });
+                });
+            }
             builder.Services.AddDbContext<NotificationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDbConnection")));
             // Add services to the container.
@@ -74,35 +90,51 @@ namespace NotificationApi
                 });
             });
             builder.Services.AddGrpc();
-            var grpcSettings = builder.Configuration.GetSection("GrpcServices");
+            var userServiceUrl = builder.Environment.IsProduction()
+                ? "https://userapi:443"
+                : "https://localhost:7216"; // Cổng dev của UserAPI
 
-            string GetGrpcUrl(string key)
+            var chatServiceUrl = builder.Environment.IsProduction()
+                ? "https://chatapi:443"
+                : "https://localhost:7227"; // << THAY THẾ cổng dev của ChatAPI tại đây nếu cần
+
+            // 2. Tách biệt cấu hình client cho từng môi trường
+            if (builder.Environment.IsProduction())
             {
-                var envKey = key.Replace("Api", "").ToUpper() + "_URL"; // USERAPI_URL, CHATAPI_URL, NOTIFICATIONAPI_URL
-                var url = Environment.GetEnvironmentVariable(envKey);
-                if (!string.IsNullOrEmpty(url))
-                    return url;
+                // --- Cấu hình cho PRODUCTION (Docker) ---
+                var handler = new HttpClientHandler();
+                var caCert = new X509Certificate2("/https/certs/ca.crt");
+                handler.ServerCertificateCustomValidationCallback = (message, serverCert, chain, errors) =>
+                {
+                    if (serverCert == null) return false;
+                    using var customChain = new X509Chain();
+                    customChain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+                    customChain.ChainPolicy.CustomTrustStore.Add(caCert);
+                    customChain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                    return customChain.Build(serverCert);
+                };
 
-                var cfg = grpcSettings[key];
-                if (string.IsNullOrEmpty(cfg))
-                    throw new Exception($"GrpcService URL for {key} not configured");
-                return cfg;
+                // Đăng ký các client với handler tùy chỉnh
+                builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
+                    o.Address = new Uri(userServiceUrl))
+                    .ConfigurePrimaryHttpMessageHandler(() => handler);
+                builder.Services.AddGrpcClient<MessageGrpcService.MessageGrpcServiceClient>(o =>
+                    o.Address = new Uri(chatServiceUrl))
+                    .ConfigurePrimaryHttpMessageHandler(() => handler);
+                builder.Services.AddGrpcClient<ConversationGrpcService.ConversationGrpcServiceClient>(o =>
+                    o.Address = new Uri(chatServiceUrl))
+                    .ConfigurePrimaryHttpMessageHandler(() => handler);
             }
-
-            builder.Services.AddGrpcClient<MessageGrpcService.MessageGrpcServiceClient>(o =>
+            else
             {
-                o.Address = new Uri("https://chat.fastchat1005.xyz");
-            });
-
-            builder.Services.AddGrpcClient<ConversationGrpcService.ConversationGrpcServiceClient>(o =>
-            {
-                o.Address = new Uri("https://chat.fastchat1005.xyz");
-            });
-
-            builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
-            {
-                o.Address = new Uri("https://user.fastchat1005.xyz");
-            });
+                // --- Cấu hình cho LOCAL DEVELOPMENT ---
+                builder.Services.AddGrpcClient<UserGrpcService.UserGrpcServiceClient>(o =>
+                    o.Address = new Uri(userServiceUrl));
+                builder.Services.AddGrpcClient<MessageGrpcService.MessageGrpcServiceClient>(o =>
+                    o.Address = new Uri(chatServiceUrl));
+                builder.Services.AddGrpcClient<ConversationGrpcService.ConversationGrpcServiceClient>(o =>
+                    o.Address = new Uri(chatServiceUrl));
+            }
 
             builder.Services.Configure<JwtSettings>(
             builder.Configuration.GetSection("Jwt")

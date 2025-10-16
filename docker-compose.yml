@@ -1,4 +1,8 @@
-﻿services:
+﻿# =================================================================
+# === CHATAPP MANAGEMENT - FINAL PRODUCTION DOCKER COMPOSE ===
+# =================================================================
+
+services:
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -25,7 +29,10 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - Kestrel__CertificatePassword=1234
       - "ConnectionStrings__ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
+    volumes:
+      - ./certs/local:/https/certs:ro
     depends_on:
       - db
     networks:
@@ -39,7 +46,10 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - Kestrel__CertificatePassword=1234
       - "ConnectionStrings__NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
+    volumes:
+      - ./certs/local:/https/certs:ro
     depends_on:
       - db
     networks:
@@ -53,7 +63,10 @@
     restart: always
     environment:
       - ASPNETCORE_ENVIRONMENT=Production
+      - Kestrel__CertificatePassword=1234
       - "ConnectionStrings__UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
+    volumes:
+      - ./certs/local:/https/certs:ro
     depends_on:
       - db
     networks:
