@@ -20,6 +20,7 @@ using UserService.Services;
 using Microsoft.Data.SqlClient;
 using UserRepository.Admin;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 namespace ChatApi
 {
@@ -28,6 +29,19 @@ namespace ChatApi
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            if (builder.Environment.IsProduction())
+            {
+                var pfxPassword = builder.Configuration["Kestrel:CertificatePassword"];
+                builder.WebHost.ConfigureKestrel(options =>
+                {
+                    options.ListenAnyIP(80, o => o.Protocols = HttpProtocols.Http1);
+                    options.ListenAnyIP(443, o =>
+                    {
+                        o.Protocols = HttpProtocols.Http2;
+                        o.UseHttps("/https/certs/chatapi.pfx", pfxPassword);
+                    });
+                });
+            }
 
             builder.Services.AddDbContext<ChatDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbConnection")));

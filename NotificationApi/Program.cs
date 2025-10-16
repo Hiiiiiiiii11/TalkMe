@@ -31,7 +31,7 @@ namespace NotificationApi
                     options.ListenAnyIP(443, o =>
                     {
                         o.Protocols = HttpProtocols.Http2;
-                        o.UseHttps("/https/certs/chatapi.pfx", pfxPassword);
+                        o.UseHttps("/https/certs/notificationapi.pfx", pfxPassword);
                     });
                 });
             }
