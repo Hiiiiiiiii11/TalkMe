@@ -59,7 +59,7 @@ jobs:
             # Chạy lại với cấu hình mới
             echo "🚀 Building Userapi..."
             docker-compose up -d --build --force-recreate userapi
-            docker-compose up --force-recreate userapi
+            docker-compose up --force-recreate -d userapi
 
             echo "🚀 Building Chatapi ..."
             docker-compose up -d --build --force-recreate chatapi
