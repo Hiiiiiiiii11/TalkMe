@@ -1,5 +1,5 @@
 ﻿services:
-  # ===================== NGINX Reverse Proxy =====================
+  # ===================== NGINX =====================
   nginx:
     image: nginx:latest
     container_name: nginx
@@ -9,23 +9,38 @@
       - "443:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./certs:/etc/letsencrypt:ro 
-      - ./www:/var/www/certbot:ro
+      - ./certs:/etc/letsencrypt
+      - ./www:/var/www/certbot
     depends_on:
       - chatapi
       - notificationapi
       - userapi
+      - swagger-ui # <--- Thêm dependency này
     networks:
       - backend
 
-  # ===================== Chat API =====================
+  # ===================== SWAGGER UI (MỚI) =====================
+  swagger-ui:
+    image: swaggerapi/swagger-ui
+    container_name: centralized_swagger
+    restart: always
+    environment:
+      # Danh sách API trỏ về Public Domain (HTTPS)
+      URLS: "[ { url: 'https://user.fastchat1005.xyz/swagger/v1/swagger.json', name: 'User Service' }, { url: 'https://chat.fastchat1005.xyz/swagger/v1/swagger.json', name: 'Chat Service' }, { url: 'https://notification.fastchat1005.xyz/swagger/v1/swagger.json', name: 'Notification Service' } ]"
+      # Layout hiển thị full màn hình
+      LAYOUT: BaseLayout
+    networks:
+      - backend
+
+  # ... (Các service ChatAPI, UserAPI, NotificationAPI, DB, Certbot giữ nguyên như cũ) ...
+  # ... (Copy y nguyên phần còn lại của file bạn gửi) ...
   chatapi:
     build:
       context: .
       dockerfile: UserChatAPI/Dockerfile
     container_name: chatapi
     restart: always
-    env_file:             # <--- QUAN TRỌNG: Load file .env
+    env_file:
       - .env
     volumes:
       - ./certs/local:/https/certs:ro
@@ -34,14 +49,13 @@
     networks:
       - backend
 
-  # ===================== Notification API =====================
   notificationapi:
     build:
       context: .
       dockerfile: NotificationApi/Dockerfile
     container_name: notificationapi
     restart: always
-    env_file:             # <--- QUAN TRỌNG: Load file .env
+    env_file:
       - .env
     volumes:
       - ./certs/local:/https/certs:ro
@@ -50,14 +64,13 @@
     networks:
       - backend
 
-  # ===================== User API =====================
   userapi:
     build:
       context: .
       dockerfile: ChatAppAPI/Dockerfile
     container_name: userapi
     restart: always
-    env_file:             # <--- QUAN TRỌNG: Load file .env
+    env_file:
       - .env
     volumes:
       - ./certs/local:/https/certs:ro
@@ -66,14 +79,13 @@
     networks:
       - backend
 
-  # ===================== SQL Server =====================
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sqlserver
     restart: always
     environment:
       ACCEPT_EULA: 'Y'
-      SA_PASSWORD: ${SA_PASSWORD} # <--- Lấy từ biến SA_PASSWORD trong file .env
+      SA_PASSWORD: ${SA_PASSWORD}
       MSSQL_PID: 'Developer'
     ports:
       - "1433:1433"
@@ -82,7 +94,6 @@
     networks:
       - backend
    
-  # ===================== Certbot =====================
   certbot:
     image: certbot/certbot
     container_name: certbot

@@ -1,58 +1,79 @@
-# Tên của workflow, sẽ hiển thị trong tab "Actions" trên GitHub
+# Tên của workflow
 name: Deploy to EC2
 
-# Điều kiện kích hoạt workflow: chạy khi có push lên nhánh 'main'
+# Chạy khi push vào nhánh main
 on:
   push:
     branches:
       - main
 
-# Các công việc (jobs) sẽ được thực hiện
 jobs:
   deploy:
-    # Tên của job
     name: Deploy
-    # Chạy trên một máy ảo Ubuntu mới nhất do GitHub cung cấp
     runs-on: ubuntu-latest
 
-    # Các bước thực hiện
     steps:
-      # Bước 1: Lấy mã nguồn từ repository về máy ảo runner
+      # Bước 1: Lấy code về Runner
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Bước 2 (MỚI): Đồng bộ file từ runner sang EC2
-      #         Cách này thay thế cho 'git pull' và hoạt động với repo private
+      # Bước 2: Tạo file .env ngay trên Runner từ GitHub Secrets
+      # (Để lát nữa copy sang EC2 cùng với source code luôn)
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_PRODUCTION }}" > .env
+
+      # Bước 3: Copy toàn bộ code (bao gồm cả file .env vừa tạo) sang EC2
       - name: Sync repository files to EC2
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "./" # Sao chép toàn bộ thư mục hiện tại
-          target: "~/ChatAppAPI" # Đến thư mục dự án trên EC2
+          source: "./" # Copy tất cả (bao gồm .env)
+          target: "~/ChatAppAPI"
 
-      # Bước 3 (SỬA LẠI): Thực thi các lệnh trên server EC2 của bạn qua SSH
+      # Bước 4: SSH vào để chạy Docker Compose
       - name: Run deployment commands on EC2
         uses: appleboy/ssh-action@master
         with:
-          # Các thông tin bí mật để kết nối SSH
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          # Script để chạy trên server EC2
           script: |
-            # Đi vào thư mục dự án
+            # Đi vào thư mục
             cd ~/ChatAppAPI
             
-            # ĐÃ BỎ LỆNH 'git pull' GÂY LỖI
+            # Kiểm tra xem file .env đã qua chưa (Optional - để debug)
+            if [ -f .env ]; then
+              echo "✅ Found .env file."
+            else
+              echo "❌ Error: .env file is missing!"
+              exit 1
+            fi
             
-            # Dừng và xóa các container cũ để chuẩn bị cho bản build mới
-            echo "🛑 Stopping and removing old containers..."
+            # Dừng container cũ
+            echo "🛑 Stopping old containers..."
             docker-compose down
             
-            # Build lại và khởi động các container Docker
-            echo "🚀 Building and restarting Docker containers..."
-            docker-compose up --build -d
-  
+            # Chạy lại với cấu hình mới
+            echo "🚀 Building Userapi..."
+            docker-compose up -d --build --force-recreate userapi
+            docker-compose up --force-recreate userapi
+
+            echo "🚀 Building Chatapi ..."
+            docker-compose up -d --build --force-recreate chatapi
+            docker-compose up --force-recreate -d chatapi
+
+            echo "🚀 Building Notificationapi..."
+            docker-compose up -d --build --force-recreate notificationapi
+            docker-compose up --force-recreate -d notificationapi
+
+            echo "🚀 Building NGHINX..."
+            docker-compose up -d --build --force-recreate nginx
+            docker-compose up --force-recreate -d nginx
+            
+            # Dọn dẹp image thừa
+            docker image prune -f
+            
             echo "✅ Deployment successful!"
