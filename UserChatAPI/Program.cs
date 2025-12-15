@@ -22,6 +22,7 @@ using UserRepository.Admin;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.HttpOverrides;
+using DotNetEnv;
 
 namespace ChatApi
 {
@@ -48,6 +49,14 @@ namespace ChatApi
                     });
                 });
             }
+            if (builder.Environment.IsDevelopment())
+            {
+                Env.TraversePath().Load(".env.Local");
+            }
+
+            // --- THÊM DÒNG NÀY ---
+            // Dòng này giúp .NET đọc các biến vừa load từ file .env vào builder.Configuration
+            builder.Configuration.AddEnvironmentVariables();
 
             builder.Services.AddDbContext<ChatDbContext>(options =>
             options.UseSqlServer(builder.Configuration.GetConnectionString("ChatDbConnection")));
@@ -207,7 +216,7 @@ namespace ChatApi
                     };
                 });
             var app = builder.Build();
-
+            app.UseCors("AllowAll");
             // =================================================================
             // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===
             // =================================================================
@@ -269,7 +278,7 @@ namespace ChatApi
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-            app.UseCors("AllowAll");
+            
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

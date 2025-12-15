@@ -1,8 +1,4 @@
-﻿# =================================================================
-# === CHATAPP MANAGEMENT - FINAL PRODUCTION DOCKER COMPOSE      ===
-# =================================================================
-
-services:
+﻿services:
   # ===================== NGINX Reverse Proxy =====================
   nginx:
     image: nginx:latest
@@ -29,12 +25,10 @@ services:
       dockerfile: UserChatAPI/Dockerfile
     container_name: chatapi
     restart: always
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Kestrel__CertificatePassword=1234 # Bổ sung mật khẩu
-      - "ConnectionStrings:ChatDbConnection=Server=db;Database=ChatDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
+    env_file:             # <--- QUAN TRỌNG: Load file .env
+      - .env
     volumes:
-      - ./certs/local:/https/certs:ro # Bổ sung volume chứa certs
+      - ./certs/local:/https/certs:ro
     depends_on:
       - db
     networks:
@@ -47,12 +41,10 @@ services:
       dockerfile: NotificationApi/Dockerfile
     container_name: notificationapi
     restart: always
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Kestrel__CertificatePassword=1234 # Bổ sung mật khẩu
-      - "ConnectionStrings:NotificationDbConnection=Server=db;Database=NotificationDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
+    env_file:             # <--- QUAN TRỌNG: Load file .env
+      - .env
     volumes:
-      - ./certs/local:/https/certs:ro # Bổ sung volume chứa certs
+      - ./certs/local:/https/certs:ro
     depends_on:
       - db
     networks:
@@ -65,12 +57,10 @@ services:
       dockerfile: ChatAppAPI/Dockerfile
     container_name: userapi
     restart: always
-    environment:
-      - ASPNETCORE_ENVIRONMENT=Production
-      - Kestrel__CertificatePassword=1234 # Bổ sung mật khẩu
-      - "ConnectionStrings:UserDbConnection=Server=db;Database=UserDb;User Id=sa;Password=Your_strong_password123;TrustServerCertificate=True;Encrypt=False;"
+    env_file:             # <--- QUAN TRỌNG: Load file .env
+      - .env
     volumes:
-      - ./certs/local:/https/certs:ro # Bổ sung volume chứa certs
+      - ./certs/local:/https/certs:ro
     depends_on:
       - db
     networks:
@@ -83,7 +73,7 @@ services:
     restart: always
     environment:
       ACCEPT_EULA: 'Y'
-      SA_PASSWORD: 'Your_strong_password123'
+      SA_PASSWORD: ${SA_PASSWORD} # <--- Lấy từ biến SA_PASSWORD trong file .env
       MSSQL_PID: 'Developer'
     ports:
       - "1433:1433"
@@ -91,7 +81,7 @@ services:
       - sql_data:/var/opt/mssql
     networks:
       - backend
-  
+   
   # ===================== Certbot =====================
   certbot:
     image: certbot/certbot

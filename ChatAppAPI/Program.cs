@@ -15,10 +15,10 @@ using UserRepository.VerifyEmail;
 using UserService.Cloudinaries;
 using UserService.Repositories;
 using UserService.Services;
-// Thêm namespace này để dùng SqlException
 using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.HttpOverrides;
+using DotNetEnv;
 
 namespace ChatAppAPI
 {
@@ -44,6 +44,14 @@ namespace ChatAppAPI
                     });
                 });
             }
+            if (builder.Environment.IsDevelopment())
+            {
+                Env.TraversePath().Load(".env.Local");
+            }
+
+            // --- THÊM DÒNG NÀY ---
+            // Dòng này giúp .NET đọc các biến vừa load từ file .env vào builder.Configuration
+            builder.Configuration.AddEnvironmentVariables();
 
             // --- PHẦN NÀY GIỮ NGUYÊN ---
             builder.Services.AddDbContext<UserDbContext>(options =>
@@ -169,6 +177,7 @@ namespace ChatAppAPI
                     };
                 });
             var app = builder.Build();
+            app.UseCors("AllowAll");
             app.MapGrpcService<UserGrpcServiceImpl>();
 
             // =================================================================
@@ -252,7 +261,7 @@ namespace ChatAppAPI
                 app.UseSwaggerUI();
             }
 
-            app.UseCors("AllowAll");
+           
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
