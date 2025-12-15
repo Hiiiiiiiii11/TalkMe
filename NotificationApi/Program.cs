@@ -14,6 +14,7 @@ using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.HttpOverrides;
+using DotNetEnv;
 
 namespace NotificationApi
 {
@@ -40,6 +41,16 @@ namespace NotificationApi
                     });
                 });
             }
+
+            if (builder.Environment.IsDevelopment())
+            {
+                Env.TraversePath().Load(".env.Local");
+            }
+
+            // --- THÊM DÒNG NÀY ---
+            // Dòng này giúp .NET đọc các biến vừa load từ file .env vào builder.Configuration
+            builder.Configuration.AddEnvironmentVariables();
+
             builder.Services.AddDbContext<NotificationDbContext>(options =>
                 options.UseSqlServer(builder.Configuration.GetConnectionString("NotificationDbConnection")));
             // Add services to the container.
@@ -186,6 +197,7 @@ namespace NotificationApi
                 });
 
             var app = builder.Build();
+            app.UseCors("AllowAll");
 
             // =================================================================
             // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===
@@ -248,7 +260,7 @@ namespace NotificationApi
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-            app.UseCors("AllowAll");
+            
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

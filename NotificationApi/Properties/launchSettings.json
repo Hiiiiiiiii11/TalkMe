@@ -19,27 +19,7 @@
         "ASPNETCORE_ENVIRONMENT": "Development",
         "NOTIFICATIONAPI_URL": "https://localhost:7292"
       }
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "Docker": {
-      "commandName": "Docker",
-      "launchBrowser": true,
-      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/swagger",
-      "publishAllPorts": true,
-      "useSSL": true,
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "NOTIFICATIONAPI_URL": "https://localhost:7292"
-      },
-      "ASPNETCORE_HTTPS_PORTS": "8083",
-      "ASPNETCORE_HTTP_PORTS": "8082"
     }
   }
+
 }

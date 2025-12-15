@@ -19,27 +19,5 @@
         "ASPNETCORE_ENVIRONMENT": "Development",
         "USERAPI_URL": "https://localhost:7216"
       }
-    },
-    "IIS Express": {
-      "commandName": "IISExpress",
-      "launchBrowser": true,
-      "launchUrl": "swagger",
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
-      }
-    },
-    "Docker": {
-      "commandName": "Docker",
-      "launchBrowser": true,
-      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}/swagger",
-      "publishAllPorts": true,
-      "useSSL": true,
-      "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development",
-        "USERAPI_URL": "https://localhost:7216"
-      },
-      "ASPNETCORE_HTTPS_PORTS": "8085",
-      "ASPNETCORE_HTTP_PORTS": "8084"
     }
-  }
 }
