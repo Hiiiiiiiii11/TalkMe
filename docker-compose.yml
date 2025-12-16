@@ -15,7 +15,7 @@
       - chatapi
       - notificationapi
       - userapi
-      - swagger-ui # <--- Thêm dependency này
+      - apigateway # <--- Thêm dependency này
     networks:
       - backend
 
