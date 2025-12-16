@@ -56,7 +56,7 @@ namespace UserService.Services
                 ?? throw new Exception("Invalid or expired OTP");
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-            await _userRepository.UpdateAsync(user);
+           _userRepository.Update(user);
 
             token.IsUsed = true;
             await _tokenRepo.UpdateAsync(token);

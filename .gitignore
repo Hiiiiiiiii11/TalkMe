@@ -46,8 +46,6 @@ ScaffoldingReadMe.txt
 !**/[Pp]ackages/build/
 # except build/, which is used as an MSBuild target
 
-# Entity Framework Migrations History
-[Mm]igrations/
 
 # Azure Functions local settings file
 local.settings.json
