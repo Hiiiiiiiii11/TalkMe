@@ -226,6 +226,7 @@ namespace ChatApi
                     };
                 });
             var app = builder.Build();
+            app.UseForwardedHeaders();
             app.UseCors("AllowMainDomain");
             // =================================================================
             // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===
