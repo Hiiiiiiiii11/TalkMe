@@ -98,11 +98,21 @@ namespace NotificationApi
             });
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policyBuilder =>
+                // Policy này cho phép Domain chính gọi vào API này
+                options.AddPolicy("AllowMainDomain", policy =>
                 {
-                    policyBuilder.AllowAnyOrigin()
-                                 .AllowAnyMethod()
-                                 .AllowAnyHeader();
+                    policy.WithOrigins(
+                            "https://fastchat1005.xyz",       // Domain chính (Swagger UI)
+                            "https://www.fastchat1005.xyz"
+                          )
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+
+                // Policy cũ của bạn (Allow All)
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
                 });
             });
             builder.Services.AddGrpc();

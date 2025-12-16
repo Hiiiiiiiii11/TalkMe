@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Share.Repoitories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,20 +11,16 @@ using UserRepository.Models;
 
 namespace UserRepository.Repositories
 {
-    public class EmailVerificationRepository : IEmailVerificationRepository
+    public class EmailVerificationRepository : GenericRepository<EmailVerification>, IEmailVerificationRepository
     {
         private readonly UserDbContext _context;
 
-        public EmailVerificationRepository(UserDbContext context)
+        public EmailVerificationRepository(UserDbContext context) : base(context)
         {
             _context = context;
         }
 
-        public  async Task AddAsync(EmailVerification verification)
-        {
-            _context.EmailVerifications.Add(verification);
-            await _context.SaveChangesAsync();
-        }
+
 
         public async Task<EmailVerification?> GetByEmailAndCodeAsync(string email, string code)
         {
