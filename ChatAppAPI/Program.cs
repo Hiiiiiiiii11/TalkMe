@@ -126,22 +126,30 @@ namespace ChatAppAPI
             });
             builder.Services.AddCors(options =>
             {
-                // Policy này cho phép Domain chính gọi vào API này
-                options.AddPolicy("AllowMainDomain", policy =>
+                if (builder.Environment.IsProduction())
                 {
-                    policy.WithOrigins(
-                            "https://fastchat1005.xyz",       // Domain chính (Swagger UI)
-                            "https://www.fastchat1005.xyz"
-                          )
-                          .AllowAnyHeader()
-                          .AllowAnyMethod();
-                });
+                    options.AddPolicy("AllowMainDomain", policy =>
+                    {
+                        policy.WithOrigins(
+                                "https://fastchat1005.xyz",       // Domain chính (Swagger UI)
+                                "https://www.fastchat1005.xyz"
+                              )
+                              .AllowAnyHeader()
+                              .AllowAnyMethod();
+                    });
+                }
+
+                // Policy này cho phép Domain chính gọi vào API này
+                else
+                {
+                    options.AddPolicy("AllowAll", policy =>
+                    {
+                        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
+                    });
+                }
 
                 // Policy cũ của bạn (Allow All)
-                options.AddPolicy("AllowAll", policy =>
-                {
-                    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
-                });
+
             });
 
             builder.Services.Configure<JwtSettings>(
@@ -188,7 +196,7 @@ namespace ChatAppAPI
                 });
             var app = builder.Build();
             app.UseForwardedHeaders();
-            app.UseCors("AllowMainDomain");
+            app.UseCors("AllowAll");
             app.MapGrpcService<UserGrpcServiceImpl>();
 
             // =================================================================

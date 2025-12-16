@@ -20,14 +20,15 @@
       - backend
 
   # ===================== SWAGGER UI (MỚI) =====================
-  swagger-ui:
-    image: swaggerapi/swagger-ui
-    container_name: centralized_swagger
+  apigateway:
+    build:
+      context: .
+      dockerfile: APIGateway/Dockerfile
+    container_name: apigateway
     restart: always
     environment:
-      # COPY DÒNG DƯỚI ĐÂY (Viết liền, chuẩn JSON):
-      URLS: '[{"url":"https://user.fastchat1005.xyz/swagger/v1/swagger.json","name":"User Service"},{"url":"https://chat.fastchat1005.xyz/swagger/v1/swagger.json","name":"Chat Service"},{"url":"https://notification.fastchat1005.xyz/swagger/v1/swagger.json","name":"Notification Service"}]'
-      LAYOUT: BaseLayout
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
     networks:
       - backend
 
