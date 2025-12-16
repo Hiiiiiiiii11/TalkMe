@@ -14,12 +14,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\ChatAppAPI\UserApi.csproj" />
-    <ProjectReference Include="..\NotificationApi\NotificationApi.csproj" />
-    <ProjectReference Include="..\UserChatAPI\ChatApi.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Folder Include="Controllers\" />
   </ItemGroup>
 
