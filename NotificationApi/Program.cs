@@ -207,6 +207,7 @@ namespace NotificationApi
                 });
 
             var app = builder.Build();
+            app.UseForwardedHeaders();
             app.UseCors("AllowAll");
 
             // =================================================================

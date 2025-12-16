@@ -187,6 +187,7 @@ namespace ChatAppAPI
                     };
                 });
             var app = builder.Build();
+            app.UseForwardedHeaders();
             app.UseCors("AllowMainDomain");
             app.MapGrpcService<UserGrpcServiceImpl>();
 

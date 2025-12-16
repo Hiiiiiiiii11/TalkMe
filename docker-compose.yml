@@ -25,9 +25,8 @@
     container_name: centralized_swagger
     restart: always
     environment:
-      # Danh sách API trỏ về Public Domain (HTTPS)
-      URLS: '[ { "url": "https://user.fastchat1005.xyz/swagger/v1/swagger.json", "name": "User Service" }, { "url": "https://chat.fastchat1005.xyz/swagger/v1/swagger.json", "name": "Chat Service" }, { "url": "https://notification.fastchat1005.xyz/swagger/v1/swagger.json", "name": "Notification Service" } ]'
-      # Layout hiển thị full màn hình
+      # COPY DÒNG DƯỚI ĐÂY (Viết liền, chuẩn JSON):
+      URLS: '[{"url":"https://user.fastchat1005.xyz/swagger/v1/swagger.json","name":"User Service"},{"url":"https://chat.fastchat1005.xyz/swagger/v1/swagger.json","name":"Chat Service"},{"url":"https://notification.fastchat1005.xyz/swagger/v1/swagger.json","name":"Notification Service"}]'
       LAYOUT: BaseLayout
     networks:
       - backend
