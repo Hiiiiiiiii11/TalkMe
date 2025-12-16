@@ -1,4 +1,8 @@
-﻿namespace APIGateway
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+namespace APIGateway
 {
     public class Program
     {
@@ -6,35 +10,46 @@
         {
             var builder = WebApplication.CreateBuilder(args);
 
-            // 1. Vẫn giữ SwaggerGen để nó chạy được UI
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             var app = builder.Build();
 
-
-            // 2. Sử dụng Swagger UI
             app.UseSwagger();
+
+            // Cấu hình Swagger UI hiển thị danh sách API động theo môi trường
             app.UseSwaggerUI(c =>
             {
-                c.RoutePrefix = string.Empty; // Hiển thị ở Root
+                c.RoutePrefix = string.Empty; // Chạy ngay tại trang chủ (root)
 
-                // --- QUAN TRỌNG: LIST CÁC SERVICE ---
-                c.SwaggerEndpoint("https://localhost:7216/swagger/v1/swagger.json", "User Service");
-                c.SwaggerEndpoint("https://localhost:7227/swagger/v1/swagger.json", "Chat Service");
-                c.SwaggerEndpoint("https://localhost:7292/swagger/v1/swagger.json", "Notification Service");
+                // LOGIC QUAN TRỌNG: Kiểm tra môi trường để chọn URL đúng
+                if (app.Environment.IsDevelopment())
+                {
+                    // --- MÔI TRƯỜNG LOCAL (Chạy máy tính cá nhân) ---
+                    c.SwaggerEndpoint("https://localhost:7216/swagger/v1/swagger.json", "User Service (Local)");
+                    c.SwaggerEndpoint("https://localhost:7227/swagger/v1/swagger.json", "Chat Service (Local)");
+                    c.SwaggerEndpoint("https://localhost:7292/swagger/v1/swagger.json", "Notification Service (Local)");
+                }
+                //if (app.Environment.IsProduction())
+                //{
+                //    // --- MÔI TRƯỜNG PRODUCTION (Chạy trên Server/Docker) ---
+                //    // Trỏ thẳng vào Domain public (HTTPS)
+                //    c.SwaggerEndpoint("https://user.fastchat1005.xyz/swagger/v1/swagger.json", "User Service");
+                //    c.SwaggerEndpoint("https://chat.fastchat1005.xyz/swagger/v1/swagger.json", "Chat Service");
+                //    c.SwaggerEndpoint("https://notification.fastchat1005.xyz/swagger/v1/swagger.json", "Notification Service");
+                //}
 
-                // Tắt validator để tránh lỗi vặt
+                // Tắt validator để tránh lỗi vặt trên UI
                 c.ConfigObject.AdditionalItems["validatorUrl"] = null;
+
+                // Giữ trạng thái expand (mở rộng) của các tag
+                c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
             });
 
-            // 3. [MẸO] Thêm một endpoint kiểm tra đơn giản
-            // Nếu Swagger vẫn lỗi, ít nhất bạn truy cập localhost:port/health sẽ thấy chữ "OK"
-            // để biết server Gateway đang sống.
-            app.MapGet("/health", () => "Api Gateway is Running!");
+            // Endpoint health check đơn giản
+            app.MapGet("/health", () => "APIGateway is running!");
 
-            // 4. Redirect các request 404 về trang chủ (Optional)
-            // Giúp lỡ tay gõ /swagger thì nó tự nhảy về /
+            // Fallback: Nếu gõ link linh tinh thì quay về trang chủ (Swagger UI)
             app.MapFallback(() => Results.Redirect("/"));
 
             app.Run();
