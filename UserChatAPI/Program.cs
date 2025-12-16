@@ -283,12 +283,14 @@ namespace ChatApi
             app.MapGrpcService<ConversationGrpcServiceImpl>();
             app.MapGrpcService<MessageGrpcServiceImpl>();
 
-            if (app.Environment.IsDevelopment() || app.Environment.IsProduction() || app.Environment.IsEnvironment("Docker"))
+            app.UseSwagger();
+            // Configure the HTTP request pipeline.
+            if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
-                app.UseSwagger();
+
                 app.UseSwaggerUI();
             }
-            
+
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();
