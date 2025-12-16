@@ -30,14 +30,14 @@ namespace APIGateway
                     c.SwaggerEndpoint("https://localhost:7227/swagger/v1/swagger.json", "Chat Service (Local)");
                     c.SwaggerEndpoint("https://localhost:7292/swagger/v1/swagger.json", "Notification Service (Local)");
                 }
-                //if (app.Environment.IsProduction())
-                //{
-                //    // --- MÔI TRƯỜNG PRODUCTION (Chạy trên Server/Docker) ---
-                //    // Trỏ thẳng vào Domain public (HTTPS)
-                //    c.SwaggerEndpoint("https://user.fastchat1005.xyz/swagger/v1/swagger.json", "User Service");
-                //    c.SwaggerEndpoint("https://chat.fastchat1005.xyz/swagger/v1/swagger.json", "Chat Service");
-                //    c.SwaggerEndpoint("https://notification.fastchat1005.xyz/swagger/v1/swagger.json", "Notification Service");
-                //}
+                if (app.Environment.IsProduction())
+                {
+                    // --- MÔI TRƯỜNG PRODUCTION (Chạy trên Server/Docker) ---
+                    // Trỏ thẳng vào Domain public (HTTPS)
+                    c.SwaggerEndpoint("https://user.fastchat1005.xyz/swagger/v1/swagger.json", "User Service");
+                    c.SwaggerEndpoint("https://chat.fastchat1005.xyz/swagger/v1/swagger.json", "Chat Service");
+                    c.SwaggerEndpoint("https://notification.fastchat1005.xyz/swagger/v1/swagger.json", "Notification Service");
+                }
 
                 // Tắt validator để tránh lỗi vặt trên UI
                 c.ConfigObject.AdditionalItems["validatorUrl"] = null;
