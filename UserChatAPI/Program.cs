@@ -163,11 +163,21 @@ namespace ChatApi
             });
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowAll", policyBuilder =>
+                // Policy này cho phép Domain chính gọi vào API này
+                options.AddPolicy("AllowMainDomain", policy =>
                 {
-                    policyBuilder.AllowAnyOrigin()
-                                 .AllowAnyMethod()
-                                 .AllowAnyHeader();
+                    policy.WithOrigins(
+                            "https://fastchat1005.xyz",       // Domain chính (Swagger UI)
+                            "https://www.fastchat1005.xyz"
+                          )
+                          .AllowAnyHeader()
+                          .AllowAnyMethod();
+                });
+
+                // Policy cũ của bạn (Allow All)
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
                 });
             });
 
@@ -216,7 +226,7 @@ namespace ChatApi
                     };
                 });
             var app = builder.Build();
-            app.UseCors("AllowAll");
+            app.UseCors("AllowMainDomain");
             // =================================================================
             // === ÁP DỤNG LOGIC TẠO DATABASE MẠNH MẼ TỪ DỰ ÁN CŨ CỦA BẠN ===
             // =================================================================

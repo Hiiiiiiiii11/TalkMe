@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Share.Repoitories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,17 +11,14 @@ using UserRepository.Models;
 
 namespace UserRepository.Repositories
 {
-    public class PasswordResetTokenRepository : IPasswordResetTokenRepository
+    public class PasswordResetTokenRepository : GenericRepository<PasswordResetToken>, IPasswordResetTokenRepository
     {
         public readonly UserDbContext _context;
-        public PasswordResetTokenRepository(UserDbContext context)
+        public PasswordResetTokenRepository(UserDbContext context) : base(context)
         {
             _context = context;
         }
-        public async Task AddAsync(PasswordResetToken token)
-        {
-            await _context.PasswordResetTokens.AddAsync(token);
-        }
+
 
         public async Task<PasswordResetToken?> GetValidTokenAsync(Guid userId, string token)
         {
@@ -36,15 +34,7 @@ namespace UserRepository.Repositories
                                            && !t.IsUsed
                                            && t.ExpiredAt > DateTime.UtcNow);
         }
-        public async Task UpdateAsync(PasswordResetToken token)
-        {
-            _context.PasswordResetTokens.Update(token);
-        }
 
 
-        public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-        }
     }
 }

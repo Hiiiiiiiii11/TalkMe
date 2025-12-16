@@ -43,6 +43,7 @@ namespace UserService.Services
 
             };
             await _userRepository.AddAsync(newUser);
+            await _userRepository.SaveChangesAsync();
             return MapToResponse(newUser);
 
         }
@@ -74,7 +75,8 @@ namespace UserService.Services
                 existingUser.AvatarUrl = avatarUrl;
             }
 
-            await _userRepository.UpdateAsync(existingUser);
+            _userRepository.Update(existingUser);
+            await _userRepository.SaveChangesAsync();
             return MapToResponse(existingUser);
         }
 
@@ -86,8 +88,8 @@ namespace UserService.Services
             {
                 throw new KeyNotFoundException("User not found");
             }
-            await _userRepository.DeleteAsync(id);
-
+            _userRepository.Remove(user);
+            await _userRepository.SaveChangesAsync();
         }
 
 
@@ -107,7 +109,8 @@ namespace UserService.Services
                 throw new Exception("User is already inactive.");
 
             user.IsActive = false;
-            await _userRepository.UpdateAsync(user);
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
         }
 
        
@@ -118,7 +121,8 @@ namespace UserService.Services
                 throw new Exception("User is already active.");
 
             user.IsActive = true;
-            await _userRepository.UpdateAsync(user);
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
         }
 
         private static UserInfoResponse MapToResponse(User user) => new()

@@ -1,4 +1,5 @@
 ﻿
+using Share.Repoitories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -10,13 +11,13 @@ using UserRepository.Models;
 
 namespace UserRepository.Repositories
 {
-    public interface IUserRepository
+    public interface IUserRepository : IGenericRepository<User>
     {
-        Task<IEnumerable<User>> GetAllAsync();
-        Task<User?> GetByIdAsync(Guid id);
-        Task AddAsync(User user);
-        Task UpdateAsync(User user);
-        Task DeleteAsync(Guid id);
+        //Task<IEnumerable<User>> GetAllAsync();
+        //Task<User?> GetByIdAsync(Guid id);
+        //Task AddAsync(User user);
+        //Task UpdateAsync(User user);
+        //Task DeleteAsync(Guid id);
         Task<User?> GetUserByEmailAsync(string email);
         Task<List<User>> SearchAsync(string searchTerm);
         Task UnActiveUser(Guid id);
