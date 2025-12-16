@@ -196,7 +196,15 @@ namespace ChatAppAPI
                 });
             var app = builder.Build();
             app.UseForwardedHeaders();
-            app.UseCors("AllowAll");
+            if(builder.Environment.IsProduction())
+            {
+                app.UseCors("AllowMainDomain");
+            }
+            else
+            {
+                app.UseCors("AllowAll");
+            }
+                
             app.MapGrpcService<UserGrpcServiceImpl>();
 
             // =================================================================
