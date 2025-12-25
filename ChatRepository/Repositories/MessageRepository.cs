@@ -3,6 +3,7 @@ using ChatRepository.Data;
 using ChatRepository.Models;
 using ChatRepository.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Share.Repoitories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,36 +12,36 @@ using System.Threading.Tasks;
 
 namespace ChatService.Repositories
 {
-    public class MessageRepository : IMessageRepository
+    public class MessageRepository : GenericRepository<Messages>, IMessageRepository
     {
         private readonly ChatDbContext _context;
-        public MessageRepository(ChatDbContext context)
+        public MessageRepository(ChatDbContext context) : base(context)
         {
             _context = context;
         }
-        public async Task SendMessageAsync(Messages message)
-        {
-            await _context.Messages.AddAsync(message);
-            await _context.SaveChangesAsync();
-        }
+        //public async Task SendMessageAsync(Messages message)
+        //{
+        //    await _context.Messages.AddAsync(message);
+        //    await _context.SaveChangesAsync();
+        //}
 
-        public async Task DeleteMessageAsync(Guid id)
-        {
-            var message = await _context.Messages.FirstOrDefaultAsync(m => m.Id == id);
-            if (message == null)
-                throw new KeyNotFoundException("Message not found.");
+        //public async Task DeleteMessageAsync(Guid id)
+        //{
+        //    var message = await _context.Messages.FirstOrDefaultAsync(m => m.Id == id);
+        //    if (message == null)
+        //        throw new KeyNotFoundException("Message not found.");
 
-            _context.Messages.Remove(message);
-            await _context.SaveChangesAsync();
-        }
+        //    _context.Messages.Remove(message);
+        //    await _context.SaveChangesAsync();
+        //}
 
-        public Task<Messages?> GetMessageByIdAsync(Guid id)
-        {
-            return _context.Messages
-                 .Include(m => m.Conversation)
-                 .AsNoTracking()
-                 .FirstOrDefaultAsync(m => m.Id == id);
-        }
+        //public Task<Messages?> GetMessageByIdAsync(Guid id)
+        //{
+        //    return _context.Messages
+        //         .Include(m => m.Conversation)
+        //         .AsNoTracking()
+        //         .FirstOrDefaultAsync(m => m.Id == id);
+        //}
 
 
         /// <summary>
@@ -62,18 +63,18 @@ namespace ChatService.Repositories
             return  await query.AsNoTracking().ToListAsync();
         }
 
-        public Task SaveChangesAsync()
-        {
-            return _context.SaveChangesAsync();
-        }
+        //public Task SaveChangesAsync()
+        //{
+        //    return _context.SaveChangesAsync();
+        //}
 
 
 
-        public Task EditMessageAsync(Messages message)
-        {
-            _context.Messages.Update(message);
-            return _context.SaveChangesAsync();
-        }
+        //public Task EditMessageAsync(Messages message)
+        //{
+        //    _context.Messages.Update(message);
+        //    return _context.SaveChangesAsync();
+        //}
 
         public Task DeleteMessageWithAllAsync(Messages message)
         {

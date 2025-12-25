@@ -3,6 +3,7 @@ using ChatRepository.Model.Response;
 using ChatRepository.Models;
 using ChatRepository.Repositories;
 using GrpcService;
+using System.Net.WebSockets;
 using System.Text.Json;
 using UserService.Services;
 
@@ -80,7 +81,8 @@ namespace ChatService.Services
                     }
                 }
             };
-            await _conversationRepository.AddConversationAsync(conversation);
+            await _conversationRepository.AddAsync(conversation);
+            await _conversationRepository.SaveChangesAsync();
             return await MapToResponse(conversation, creatorId);
         }
 
@@ -120,7 +122,8 @@ namespace ChatService.Services
                     }
                 }
             }
-            await _conversationRepository.AddConversationAsync(conversation);
+            await _conversationRepository.AddAsync(conversation);
+            await _conversationRepository.SaveChangesAsync();
             // 🔔 Gửi thông báo cho từng user được thêm
             foreach (var userId in newUserIds)
             {
@@ -146,7 +149,10 @@ namespace ChatService.Services
 
         public async Task DeleteConversationAsync(Guid id)
         {
-            await _conversationRepository.DeleteConversationAsync(id);
+            var conversation = await _conversationRepository.GetByIdAsync(id);
+            if (conversation == null) throw new KeyNotFoundException("Conversation not found.");
+             _conversationRepository.Remove(conversation);
+            await _conversationRepository.SaveChangesAsync();
         }
 
 
@@ -158,7 +164,7 @@ namespace ChatService.Services
 
         public async Task UpdateConversationAsync(Guid id,ConversationUpdateRequest request, Guid adminGroupId)
         {
-            var conversation = await _conversationRepository.GetConversationByIdAsync(id);
+            var conversation = await _conversationRepository.GetByIdAsync(id);
             if (conversation == null) throw new KeyNotFoundException("Conversation not found.");
             if (conversation.AdminId != adminGroupId) throw new UnauthorizedAccessException("Only admin can update conversation.");
 
@@ -170,12 +176,13 @@ namespace ChatService.Services
                 var avatarGroupUrl = _uploadPhotoService.UploadPhotoAsync(request.AvartarGroup);
                 conversation.AvartarGroup = avatarGroupUrl;
             }
-            await _conversationRepository.UpdateConversationAsync(conversation);
+             _conversationRepository.Update(conversation);
+            await _conversationRepository.SaveChangesAsync();
         }
 
         public async Task<ConversationResponse?> GetConversationByIdAsync(Guid id)
         {
-            var conversation = await _conversationRepository.GetConversationByIdAsync(id);
+            var conversation = await _conversationRepository.GetByIdAsync(id);
             if (conversation == null) return null;
 
             return await MapToResponse(conversation, Guid.Empty);
@@ -240,7 +247,7 @@ namespace ChatService.Services
 
         public async Task DissolveConversationAsync(Guid id)
         {
-            var conversation = await _conversationRepository.GetConversationByIdAsync(id);
+            var conversation = await _conversationRepository.GetByIdAsync(id);
             if (conversation == null)
                 throw new KeyNotFoundException("Conversation not found.");
 
@@ -248,7 +255,8 @@ namespace ChatService.Services
                 throw new InvalidOperationException("Only groups can be dissolved.");
 
             conversation.IsDissolve = true;
-            await _conversationRepository.UpdateConversationAsync(conversation);
+            _conversationRepository.Update(conversation);
+            await _conversationRepository.SaveChangesAsync();
         }
     }
 }

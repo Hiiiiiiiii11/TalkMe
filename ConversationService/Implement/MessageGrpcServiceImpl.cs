@@ -18,7 +18,7 @@ namespace ChatService.Implement
             if (string.IsNullOrWhiteSpace(request.Id) || !Guid.TryParse(request.Id, out var messageId))
                 throw new RpcException(new Status(StatusCode.InvalidArgument, "Invalid message id"));
 
-            var message = await _messageRepository.GetMessageByIdAsync(messageId);
+            var message = await _messageRepository.GetByIdAsync(messageId);
             if (message == null)
                 throw new RpcException(new Status(StatusCode.NotFound, $"Message {messageId} not found"));
 

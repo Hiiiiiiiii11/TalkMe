@@ -278,7 +278,10 @@ namespace NotificationService.Services
 
         public async Task DeleteNotificationAsync(Guid id)
         {
-            await _notificationRepository.DeleteAsync(id);
+            var notification = await _notificationRepository.GetByIdAsync(id);
+            if (notification == null) return;
+            _notificationRepository.Remove(notification);
+            await _notificationRepository.SaveChangesAsync();
         }
         public async Task<IEnumerable<NotificationResponse>> GetAllNotificationsAsync()
         {
@@ -305,19 +308,22 @@ namespace NotificationService.Services
             if (notification.Type == "Message")
             {
                 // Nếu là thông báo tin nhắn thì xóa luôn
-                await _notificationRepository.DeleteAsync(id);
+                _notificationRepository.Remove(notification);
+                await _notificationRepository.SaveChangesAsync();
             }
             else if (notification.Type == "System")
             {
                 // Nếu là thông báo hệ thống thì chỉ update IsRead = true
                 notification.IsRead = true;
-                await _notificationRepository.UpdateAsync(notification);
+                 _notificationRepository.Update(notification);
+                await _notificationRepository.SaveChangesAsync();
             }
         }
 
         public async Task UpdateNotificationAsync(Notification notification)
         {
-            await _notificationRepository.UpdateAsync(notification);
+             _notificationRepository.Update(notification);
+            await _notificationRepository.SaveChangesAsync();
         }
 
         public async Task<NotificationMessageResponse?> GetNotificationMessageByIdAsync(Guid id)

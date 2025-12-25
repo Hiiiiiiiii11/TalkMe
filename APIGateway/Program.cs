@@ -44,6 +44,7 @@ namespace APIGateway
 
                 // Giữ trạng thái expand (mở rộng) của các tag
                 c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+                c.EnablePersistAuthorization();
             });
 
             // Endpoint health check đơn giản

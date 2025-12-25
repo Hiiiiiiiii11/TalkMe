@@ -25,7 +25,7 @@ namespace ChatService.Services
 
         public async Task<List<Participants>> AddParticipantToConversation(Guid conversationId, List<Guid> userIds)
         {
-            var conversation = await _conversationRepository.GetConversationByIdAsync(conversationId);
+            var conversation = await _conversationRepository.GetByIdAsync(conversationId);
             if (conversation == null)
             {
                 throw new KeyNotFoundException("Conversation not found");
@@ -48,7 +48,8 @@ namespace ChatService.Services
                     IsBanChat = false,
                     JoinAt = DateTime.UtcNow
                 };
-                await _participantRepository.AddParticipantAsync(participant);
+                await _participantRepository.AddAsync(participant);
+                await _participantRepository.SaveChangesAsync();
                 addedParticipants.Add(participant);
 
                 // 🔔 Tạo thông báo "Tham gia nhóm"
@@ -79,7 +80,9 @@ namespace ChatService.Services
                 if (user.IsBanChat)
                     throw new Exception("User is banchat already.");
                 user.IsBanChat = true;
-                await _participantRepository.UpdateParticipantAsync(user);
+                 _participantRepository.Update(user);
+                await _participantRepository.SaveChangesAsync();
+
             }
             return banchatUser;
         }
@@ -94,7 +97,8 @@ namespace ChatService.Services
                 if (user.IsBanned)
                     throw new Exception("User is banned already.");
                 user.IsBanned = true;
-                await _participantRepository.UpdateParticipantAsync(user);
+                 _participantRepository.Update(user);
+                await _participantRepository.SaveChangesAsync();
 
             }
             return banUser;
@@ -122,7 +126,7 @@ namespace ChatService.Services
 
         public async Task<IEnumerable<Participants>> RemoveParticipantsAsync(Guid conversationId, List<Guid> userIds)
         {
-            var conversation =await _conversationRepository.GetConversationByIdAsync(conversationId);
+            var conversation =await _conversationRepository.GetByIdAsync(conversationId);
             if(conversation == null)
             {
                 throw new KeyNotFoundException("Conversation not found");
@@ -166,7 +170,9 @@ namespace ChatService.Services
                     throw new Exception("User is unbanchat already.");
 
                 user.IsBanChat = false;
-                await _participantRepository.UpdateParticipantAsync(user);
+                 _participantRepository.Update(user);
+                await _participantRepository.SaveChangesAsync();
+
             }
             return banchatUser;
         }
@@ -182,7 +188,8 @@ namespace ChatService.Services
                     throw new Exception("User is unbanned already.");
 
                 user.IsBanned = false;
-                await _participantRepository.UpdateParticipantAsync(user);
+                 _participantRepository.Update(user);
+                await _participantRepository.SaveChangesAsync();
             }
             return banchatUser;
         }
