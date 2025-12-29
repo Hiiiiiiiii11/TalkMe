@@ -278,7 +278,7 @@ namespace SocialApi
                             var services = scope.ServiceProvider;
                             var dbContext = services.GetRequiredService<SocialDbContext>();
 
-                            var defaultConnStr = builder.Configuration.GetConnectionString("ChatDbConnection");
+                            var defaultConnStr = builder.Configuration.GetConnectionString("SocialDbConnection");
                             var dbName = new SqlConnectionStringBuilder(defaultConnStr).InitialCatalog;
                             var masterConnStr = defaultConnStr.Replace($"Database={dbName}", "Database=master");
 
