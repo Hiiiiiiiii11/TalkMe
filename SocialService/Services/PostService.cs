@@ -184,42 +184,43 @@ namespace SocialService.Services
             var post = await _postRepository.GetByIdAsync(postId);
             if (post == null)
             {
-                throw new Exception("Bài viết không tồn tại."); // Hoặc return null tùy logic Controller
+                throw new Exception("Bài viết không tồn tại.");
             }
 
-            // 2. Load danh sách Media hiện tại của bài viết (Nếu chưa có thì load từ DB)
-            // Lý do: Cần list này để biết cái nào cần xóa và tính SortOrder cho ảnh mới
-            if (post.PostMedias == null)
-            {
-                post.PostMedias = (ICollection<PostMedias>)await _postMediaRepository.GetMediaByPostIdAsync(postId);
-            }
+            // 2. [QUAN TRỌNG] Luôn load Media hiện tại từ DB và ép kiểu về List để thao tác trong bộ nhớ
+            var currentMediasInDb = await _postMediaRepository.GetMediaByPostIdAsync(postId);
+            post.PostMedias = currentMediasInDb.ToList(); // Chuyển thành List để dễ Add/Remove
 
-            // 3. XỬ LÝ XÓA MEDIA CŨ (Nếu người dùng gửi lên danh sách ID cần xóa)
+            // 3. XỬ LÝ XÓA MEDIA CŨ
             if (request.DeletedMediaIds != null && request.DeletedMediaIds.Any())
             {
-                // Lọc ra những media cần xóa đang thuộc về post này
+                // Lọc ra những item cần xóa mà thực sự đang có trong bài viết
                 var mediaToDelete = post.PostMedias
                     .Where(m => request.DeletedMediaIds.Contains(m.Id))
                     .ToList();
 
-                foreach (var media in mediaToDelete)
+                if (mediaToDelete.Any())
                 {
-                    // Xóa khỏi Database
-                    // (Lưu ý: GenericRepo cần có hàm Delete hoặc Remove)
-                     _postMediaRepository.Remove(media);
-                    _postRepository.SaveChangesAsync();
+                    // A. Xóa khỏi Database
+                    _postMediaRepository.RemoveRange(mediaToDelete);
 
-                    // Xóa khỏi list in-memory để tí nữa map response không bị thừa
-                    post.PostMedias.Remove(media);
-
-                    // (Nâng cao: Có thể gọi _mediaUploadService để xóa file trên Cloudinary nếu cần tiết kiệm dung lượng)
+                    // B. [FIX] Xóa khỏi List trong bộ nhớ để Response trả về đúng
+                    // Dùng RemoveAll cho an toàn
+                    foreach (var item in mediaToDelete)
+                    {
+                        var itemToRemove = post.PostMedias.FirstOrDefault(x => x.Id == item.Id);
+                        if (itemToRemove != null)
+                        {
+                            post.PostMedias.Remove(itemToRemove);
+                        }
+                    }
                 }
             }
 
-            // 4. XỬ LÝ UPLOAD MEDIA MỚI (Append vào cuối danh sách)
+            // 4. XỬ LÝ UPLOAD MEDIA MỚI
             if (request.NewFiles != null && request.NewFiles.Any())
             {
-                // Tính SortOrder tiếp theo: Lấy số lớn nhất hiện tại + 1
+                // Tính SortOrder tiếp theo
                 int currentMaxSort = post.PostMedias.Any() ? post.PostMedias.Max(m => m.SortOrder) : -1;
                 int nextSortOrder = currentMaxSort + 1;
 
@@ -227,11 +228,10 @@ namespace SocialService.Services
 
                 foreach (var file in request.NewFiles)
                 {
+                    var ext = Path.GetExtension(file.FileName).ToLower();
                     string mediaUrl = "";
                     int mediaType = 0;
-                    var ext = Path.GetExtension(file.FileName).ToLower();
 
-                    // Upload lên Cloudinary
                     if (IsVideo(ext))
                     {
                         mediaUrl = await _mediaUploadService.UploadPostVideoAsync(file);
@@ -243,39 +243,47 @@ namespace SocialService.Services
                         mediaType = 0;
                     }
 
-                    // Tạo Entity Media mới
                     var newMedia = new PostMedias
                     {
                         Id = Guid.NewGuid(),
                         PostId = post.Id,
                         MediaUrl = mediaUrl,
                         MediaType = mediaType,
-                        SortOrder = nextSortOrder++ // Tăng dần thứ tự
+                        SortOrder = nextSortOrder++
                     };
 
                     newMediaList.Add(newMedia);
+
+                    // [FIX] Add ngay vào list trong bộ nhớ để Response trả về có ảnh mới
+                    post.PostMedias.Add(newMedia);
                 }
 
-                // Lưu các media mới vào DB
+                // Lưu xuống DB
                 await _postMediaRepository.AddMediaRangeAsync(newMediaList);
-
-                // Thêm vào list in-memory để trả về Response đầy đủ
-                foreach (var m in newMediaList)
-                {
-                    post.PostMedias.Add(m);
-                }
             }
 
-            // 5. Cập nhật thông tin Text & Save Post
-            post.Content = request.Content;
-            post.PrivacyLevel = request.PrivacyLevel;
+            // 5. Cập nhật thông tin Text
+            if (!string.IsNullOrWhiteSpace(request.Content))
+            {
+                post.Content = request.Content;
+            }
+
+            if (request.PrivacyLevel.HasValue)
+            {
+                post.PrivacyLevel = request.PrivacyLevel.Value;
+            }
+
             post.UpdatedAt = DateTime.UtcNow;
 
-             _postRepository.Update(post);
+            // 6. Save Changes (Lưu tất cả thay đổi: Xóa ảnh, Thêm ảnh, Sửa text)
+            _postRepository.Update(post);
             await _postRepository.SaveChangesAsync();
 
-            // 6. Trả về kết quả
-            return MapToResponse(post);
+            // 7. Trả về kết quả (Lúc này post.PostMedias trong RAM đã chuẩn xác)
+            var response = MapToResponse(post);
+            await EnrichUserDataAsync(response);
+
+            return response;
         }
 
         private async Task EnrichUserDataAsync(PostResponse post)

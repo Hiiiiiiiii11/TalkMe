@@ -21,7 +21,7 @@ namespace SocialRepository.Model.Request
     public class PostUpdateRequest
     {
         public string? Content { get; set; }
-        public int PrivacyLevel { get; set; }
+        public int? PrivacyLevel { get; set; }
 
         // (Tùy chọn) Nếu bạn muốn chức năng Update cho phép thêm ảnh mới
         public List<IFormFile>? NewFiles { get; set; }
