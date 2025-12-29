@@ -23,6 +23,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.HttpOverrides;
 using DotNetEnv;
+using Share.GrpcClient;
 
 namespace ChatApi
 {
@@ -80,6 +81,7 @@ namespace ChatApi
             builder.Services.AddScoped<IParticipantService, ParticipantService>();
             builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
             builder.Services.AddScoped<IUploadPhotoService, UploadPhotoService>();
+            builder.Services.AddScoped<IGrpcClient, GrpcClient>();
 
             builder.Services.AddHttpContextAccessor();
 

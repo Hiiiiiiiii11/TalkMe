@@ -7,6 +7,7 @@ using ChatService.Mapping;
 using ChatService.Repositories;
 using GrpcService;
 using Microsoft.AspNetCore.Components.Forms;
+using Share.GrpcClient;
 using Share.Services;
 using System;
 using System.Collections.Generic;
@@ -21,21 +22,19 @@ namespace ChatService.Services
         private readonly IMessageRepository _messageRepository;
         private readonly IConversationRepository _conversationRepository;
         private readonly IConversationService _conversationService;
-        private readonly NotificationGrpcService.NotificationGrpcServiceClient _notificationGrpcClient;
-        private readonly UserGrpcService.UserGrpcServiceClient _userGrpcClient;
-        public MessageService(IMessageRepository messageRepository, IConversationRepository conversationRepository, IConversationService conversationService, NotificationGrpcService.NotificationGrpcServiceClient notificationGrpcServiceClient,UserGrpcService.UserGrpcServiceClient userGrpcServiceClient )
+        private readonly IGrpcClient _grpcClient;
+        public MessageService(IMessageRepository messageRepository, IConversationRepository conversationRepository, IConversationService conversationService, IGrpcClient grpcClient)
         {
             _messageRepository = messageRepository;
             _conversationRepository = conversationRepository;
             _conversationService = conversationService;
-            _notificationGrpcClient = notificationGrpcServiceClient;
-            _userGrpcClient = userGrpcServiceClient;
+            _grpcClient = grpcClient;
 
 
         }
         public async Task<MessageResponse> SendGroupMessageAsync(SendGroupMessageRequest request, Guid senderId)
         {
-            var conversation = await _conversationRepository.GetConversationByIdAsync(request.ConversationId);
+            var conversation = await _conversationRepository.GetByIdAsync(request.ConversationId);
 
             if (conversation == null)
             {
@@ -56,32 +55,29 @@ namespace ChatService.Services
                 IsEdited = false,
                 IsDeleted = false
             };
-           await _messageRepository.SendMessageAsync(message);
-            await _messageRepository.SaveChangesAsync();
+           await _messageRepository.AddAsync(message);
+           await _messageRepository.SaveChangesAsync();
 
             //goi gRPC tạo notification
-            await _notificationGrpcClient.CreateMessageNotificationAsync(new CreateMessageNotificationGrpcRequest
-            {
-                ConversationId = message.ConversationId.ToString(),
-                MessageId = message.Id.ToString()
-            });
-            return message.MessageToResponse();
+            await _grpcClient.NotifyNewMessageAsync(
+                message.ConversationId.ToString(),
+                message.Id.ToString()
+            );
+            return message.MapToResponse();
         }
         public async Task<MessageResponse> SendPrivateMessageAsync(SendPrivateMessageRequest request, Guid senderId)
         {
+            var userResult = await _grpcClient.GetUserByIdAsync(request.receiverId.ToString());
+
+            if (!userResult.IsSuccess || userResult.Data == null)
+            {
+                throw new KeyNotFoundException("Receiver user does not exist.");
+            }
             // Tạo conversation riêng (hoặc lấy conversation cũ)
             var conversationRequest = new ConversationCreateRequest
             {
                 ParticipantIds = new List<Guid> { request.receiverId }
             };
-            var receiverReply = await _userGrpcClient.GetUserByIdAsync(new GetUserByIdRequest
-            {
-                Id = request.receiverId.ToString()
-            });
-            if (receiverReply == null)
-            {
-                throw new Exception("User isn't exist");
-            }
 
             var conversation = await _conversationService.CreatePrivateConversationAsync(conversationRequest, senderId);
             // Tạo tin nhắn
@@ -94,26 +90,28 @@ namespace ChatService.Services
                 IsEdited = false,
                 IsDeleted = false
             };
-            await _messageRepository.SendMessageAsync(message);
+            await _messageRepository.AddAsync(message);
             await _messageRepository.SaveChangesAsync();
 
             //goi gRPC tạo notification
-            await _notificationGrpcClient.CreateMessageNotificationAsync(new CreateMessageNotificationGrpcRequest
-            {
-                ConversationId = message.ConversationId.ToString(),
-                MessageId = message.Id.ToString()
-            });
-            return message.MessageToResponse();
+            await _grpcClient.NotifyNewMessageAsync(
+                message.ConversationId.ToString(),
+                message.Id.ToString()
+            );
+            return message.MapToResponse();
         }
 
         public async Task DeleteMessageAsync(Guid id)
         {
-             await _messageRepository.DeleteMessageAsync(id);
+            var message = await _messageRepository.GetByIdAsync(id);
+            if (message == null) throw new KeyNotFoundException("Message not found");
+             _messageRepository.Remove(message);
+            await _messageRepository.SaveChangesAsync();
         }
 
         public async Task DeleteMessageOnlyUserAsync(Guid id, Guid userId)
         {
-            var message = await _messageRepository.GetMessageByIdAsync(id);
+            var message = await _messageRepository.GetByIdAsync(id);
             if (message == null) throw new KeyNotFoundException("Message not found");
 
             var deletion = new MessageDeletion
@@ -131,7 +129,7 @@ namespace ChatService.Services
 
         public async Task DeleteMessageWithAllAsync(Guid id)
         {
-            var message = await _messageRepository.GetMessageByIdAsync(id);
+            var message = await _messageRepository.GetByIdAsync(id);
             if (message == null) throw new KeyNotFoundException("Message not found");
 
             message.IsDeleted = true;
@@ -141,8 +139,8 @@ namespace ChatService.Services
 
         public async Task<MessageResponse?> GetMessageByIdAsync(Guid id)
         {
-            var message = await _messageRepository.GetMessageByIdAsync(id);
-            return message?.MessageToResponse();
+            var message = await _messageRepository.GetByIdAsync(id);
+            return message?.MapToResponse();
         }
 
         public async Task<IEnumerable<MessageResponse>> GetMessageByRoomIdAsync(Guid conversationId, Guid currentUserId, int? take = null, DateTime? before = null)
@@ -156,7 +154,7 @@ namespace ChatService.Services
                     content = "Message has been removed.";
                 }else if(m.MessageDeletions != null && m.MessageDeletions.Any(md => md.UserId == currentUserId))
                 {
-                    content = "You has been removed this message.";
+                    content = "You have been removed this message.";
                 }
                 else
                 {
@@ -178,20 +176,21 @@ namespace ChatService.Services
         public async Task<IEnumerable<MessageResponse>> SearchMessagesAsync(Guid conversationId, string keyword, int? take = null, DateTime? before = null)
         {
             var searchMessage = await _messageRepository.SearchMessageAsync(conversationId, keyword, take, before);
-            return searchMessage.Select(m => m.MessageToResponse());
+            return searchMessage.Select(m => m.MapToResponse());
         }
 
         public async Task EditMessageAsync(Guid id, EditMessageRequest request)
         {
-            var message = await _messageRepository.GetMessageByIdAsync(id);
+            var message = await _messageRepository.GetByIdAsync(id);
             if (message == null)
                 throw new KeyNotFoundException("Message not found.");
             message.Content = request.NewContent;
             message.IsEdited = true;
-            await _messageRepository.EditMessageAsync(message);
+            _messageRepository.Update(message);
             await _messageRepository.SaveChangesAsync();
         }
 
+        
 
     }
 }

@@ -6,6 +6,7 @@ using ChatRepository.Models;
 using ChatRepository.Repositories;
 using GrpcService;
 using Microsoft.Extensions.Configuration.UserSecrets;
+using Share.GrpcClient;
 using System.Text.Json;
 
 namespace ChatService.Services
@@ -14,18 +15,18 @@ namespace ChatService.Services
     {
         private readonly IParticipantRepository _participantRepository;
         private readonly IConversationRepository _conversationRepository;
-        private readonly NotificationGrpcService.NotificationGrpcServiceClient _notificationGrpcServiceClient;
+        private readonly IGrpcClient _grpcClient;
 
-        public ParticipantService(IParticipantRepository participantRepository, IConversationRepository conversationRepository,NotificationGrpcService.NotificationGrpcServiceClient notificationGrpcServiceClient )
+        public ParticipantService(IParticipantRepository participantRepository, IConversationRepository conversationRepository, IGrpcClient grpcClient )
         {
             _participantRepository = participantRepository;
             _conversationRepository = conversationRepository;
-            _notificationGrpcServiceClient = notificationGrpcServiceClient;
+            _grpcClient = grpcClient;
         }
 
         public async Task<List<Participants>> AddParticipantToConversation(Guid conversationId, List<Guid> userIds)
         {
-            var conversation = await _conversationRepository.GetConversationByIdAsync(conversationId);
+            var conversation = await _conversationRepository.GetByIdAsync(conversationId);
             if (conversation == null)
             {
                 throw new KeyNotFoundException("Conversation not found");
@@ -48,56 +49,71 @@ namespace ChatService.Services
                     IsBanChat = false,
                     JoinAt = DateTime.UtcNow
                 };
-                await _participantRepository.AddParticipantAsync(participant);
+                await _participantRepository.AddAsync(participant);
+                
                 addedParticipants.Add(participant);
 
                 // 🔔 Tạo thông báo "Tham gia nhóm"
-                await _notificationGrpcServiceClient.CreateUserNotificationAsync(
-                    new CreateUserNotificationGrpcRequest
-                    {
-                        ConversationId = conversation.Id.ToString(),
-                        ReceiverId = userId.ToString(),
-                        Type = "System",
-                        DataJson = JsonSerializer.Serialize(new
-                        {
-                            Title = "Join",
-                            Content = $"You have been added to group '{conversation.Name}'",
-                            GroupId = conversation.Id
-                        })
-                    });
+                var dataJson = JsonSerializer.Serialize(new
+                {
+                    Title = "Join",
+                    Content = $"You have been added to group '{conversation.Name}'",
+                    GroupId = conversation.Id
+                });
+
+                // Gọi gRPC qua Wrapper (không cần await nếu không muốn chặn luồng, nhưng await cho an toàn)
+                await _grpcClient.NotifyUserActionAsync(
+                    conversation.Id.ToString(),
+                    userId.ToString(),
+                    "System",
+                    dataJson
+                );
+                await _participantRepository.SaveChangesAsync();
             }
             return addedParticipants;
         }
 
         public async Task<IEnumerable<Participants>> BanChatParticipantsAsync(Guid conversationId, List<Guid> userIds)
         {
-            var banchatUser = new List<Participants>();
-            foreach(var userId in userIds)
+            var bannedChatUsers = new List<Participants>();
+
+            foreach (var userId in userIds)
             {
                 var user = await _participantRepository.GetParticipantAsync(conversationId, userId);
                 if (user == null) continue;
-                if (user.IsBanChat)
-                    throw new Exception("User is banchat already.");
-                user.IsBanChat = true;
-                await _participantRepository.UpdateParticipantAsync(user);
+
+                // Nếu đã ban rồi thì bỏ qua hoặc báo lỗi tùy logic (ở đây mình update nếu chưa ban)
+                if (!user.IsBanChat)
+                {
+                    user.IsBanChat = true;
+                    _participantRepository.Update(user);
+                    bannedChatUsers.Add(user); // Thêm vào list trả về
+                }
             }
-            return banchatUser;
+
+            await _participantRepository.SaveChangesAsync();
+            return bannedChatUsers;
         }
 
         public async Task<IEnumerable<Participants>> BannedParticipantsAsync(Guid conversationId, List<Guid> userIds)
         {
-            var banUser = new List<Participants>();
-            foreach(var userId in userIds)
+            var bannedUsers = new List<Participants>();
+
+            foreach (var userId in userIds)
             {
                 var user = await _participantRepository.GetParticipantAsync(conversationId, userId);
                 if (user == null) continue;
-                if (user.IsBanned)
-                    throw new Exception("User is banned already.");
-                user.IsBanned = true;
-                await _participantRepository.UpdateParticipantAsync(user);
 
+                if (!user.IsBanned)
+                {
+                    user.IsBanned = true;
+                    _participantRepository.Update(user);
+                    bannedUsers.Add(user); // Thêm vào list trả về
+                }
             }
-            return banUser;
+
+            await _participantRepository.SaveChangesAsync();
+            return bannedUsers;
         }
 
         public async Task<IEnumerable<Participants>> GetBanChatParticipantsByConversationIdAsync(Guid conversationId)
@@ -122,7 +138,7 @@ namespace ChatService.Services
 
         public async Task<IEnumerable<Participants>> RemoveParticipantsAsync(Guid conversationId, List<Guid> userIds)
         {
-            var conversation =await _conversationRepository.GetConversationByIdAsync(conversationId);
+            var conversation =await _conversationRepository.GetByIdAsync(conversationId);
             if(conversation == null)
             {
                 throw new KeyNotFoundException("Conversation not found");
@@ -132,59 +148,84 @@ namespace ChatService.Services
                 throw new InvalidOperationException("Cannot remove participant from a private conversation.");
             }
 
-            var removeUser = new List<Participants>();
-             foreach(var userId in userIds)
+            var removedUsers = new List<Participants>();
+            foreach (var userId in userIds)
             {
                 try
                 {
-                    await _participantRepository.RemoveParticipantAsync(conversationId, userId);
-                    removeUser.Add(new Participants
+                    // Lấy user trước để trả về info
+                    var participant = await _participantRepository.GetParticipantAsync(conversationId, userId);
+                    if (participant != null)
                     {
-                        ConversationId = conversationId,
-                        UserId = userId
-                    });
+                        await _participantRepository.RemoveParticipantAsync(conversationId, userId);
+                        removedUsers.Add(participant); // Thêm vào list trả về
 
+                        // 🔔 (Tùy chọn) Gửi thông báo bạn đã bị xóa khỏi nhóm
+                        var dataJson = JsonSerializer.Serialize(new
+                        {
+                            Title = "Kicked",
+                            Content = $"You have been removed from group '{conversation.Name}'",
+                            GroupId = conversation.Id
+                        });
+
+                        await _grpcClient.NotifyUserActionAsync(
+                            conversation.Id.ToString(),
+                            userId.ToString(),
+                            "System",
+                            dataJson
+                        );
+                    }
                 }
                 catch (KeyNotFoundException)
                 {
-                    //bỏ qua user ko tồn tại để tránh lỗi
                     continue;
                 }
             }
-            return removeUser;
+            await _participantRepository.SaveChangesAsync();
+            return removedUsers;
         }
 
 
         public async Task<IEnumerable<Participants>> UnBanChatParticipantsAsync(Guid conversationId, List<Guid> userIds)
         {
-            var banchatUser = new List<Participants>();
+            var unbannedChatUsers = new List<Participants>();
+
             foreach (var userId in userIds)
             {
                 var user = await _participantRepository.GetParticipantAsync(conversationId, userId);
                 if (user == null) continue;
-                if (!user.IsBanChat)
-                    throw new Exception("User is unbanchat already.");
 
-                user.IsBanChat = false;
-                await _participantRepository.UpdateParticipantAsync(user);
+                if (user.IsBanChat)
+                {
+                    user.IsBanChat = false;
+                    _participantRepository.Update(user);
+                    unbannedChatUsers.Add(user); // Thêm vào list
+                }
             }
-            return banchatUser;
+
+            await _participantRepository.SaveChangesAsync();
+            return unbannedChatUsers;
         }
 
         public async Task<IEnumerable<Participants>> UnBannedParticipantsAsync(Guid conversationId, List<Guid> userIds)
         {
-            var banchatUser = new List<Participants>();
+            var unbannedUsers = new List<Participants>();
             foreach (var userId in userIds)
             {
                 var user = await _participantRepository.GetParticipantAsync(conversationId, userId);
                 if (user == null) continue;
-                if (!user.IsBanned)
-                    throw new Exception("User is unbanned already.");
 
-                user.IsBanned = false;
-                await _participantRepository.UpdateParticipantAsync(user);
+                if (user.IsBanChat)
+                {
+                    user.IsBanned = false;
+                    _participantRepository.Update(user);
+                    unbannedUsers.Add(user); // Thêm vào list trả về
+                }
+
             }
-            return banchatUser;
+            await _participantRepository.SaveChangesAsync();
+            return unbannedUsers;
+            
         }
     }
 }

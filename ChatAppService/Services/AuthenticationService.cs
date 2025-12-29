@@ -64,7 +64,7 @@ namespace UserService.Services
             var user = await _userRepository.GetUserByEmailAsync(request.Email);
 
             if (user == null)
-                throw new InvalidOperationException("User doesn't exist!");
+                throw new InvalidOperationException("Email doesn't exist!");
 
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
 

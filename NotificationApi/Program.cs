@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.HttpOverrides;
 using DotNetEnv;
+using Share.GrpcClient;
 
 namespace NotificationApi
 {
@@ -169,6 +170,7 @@ namespace NotificationApi
                 builder.Services.AddGrpcClient<ConversationGrpcService.ConversationGrpcServiceClient>(o =>
                     o.Address = new Uri(chatServiceUrl));
             }
+            builder.Services.AddScoped<IGrpcClient, GrpcClient>();
 
             builder.Services.Configure<JwtSettings>(
             builder.Configuration.GetSection("Jwt")

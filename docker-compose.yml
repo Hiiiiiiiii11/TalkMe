@@ -15,6 +15,7 @@
       - chatapi
       - notificationapi
       - userapi
+      - ocialapi 
       - apigateway # <--- Thêm dependency này
     networks:
       - backend
@@ -69,6 +70,21 @@
       context: .
       dockerfile: ChatAppAPI/Dockerfile
     container_name: userapi
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./certs/local:/https/certs:ro
+    depends_on:
+      - db
+    networks:
+      - backend
+
+  socialapi:
+    build:
+      context: .
+      dockerfile: SocialApi/Dockerfile
+    container_name: socialapi
     restart: always
     env_file:
       - .env

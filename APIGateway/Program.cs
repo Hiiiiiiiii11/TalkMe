@@ -29,6 +29,8 @@ namespace APIGateway
                     c.SwaggerEndpoint("https://localhost:7216/swagger/v1/swagger.json", "User Service (Local)");
                     c.SwaggerEndpoint("https://localhost:7227/swagger/v1/swagger.json", "Chat Service (Local)");
                     c.SwaggerEndpoint("https://localhost:7292/swagger/v1/swagger.json", "Notification Service (Local)");
+                    c.SwaggerEndpoint("https://localhost:7255/swagger/v1/swagger.json", "Social Service (Local)");
+
                 }
                 if (app.Environment.IsProduction())
                 {
@@ -44,6 +46,7 @@ namespace APIGateway
 
                 // Giữ trạng thái expand (mở rộng) của các tag
                 c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+                c.EnablePersistAuthorization();
             });
 
             // Endpoint health check đơn giản

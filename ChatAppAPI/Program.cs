@@ -19,6 +19,9 @@ using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.HttpOverrides;
 using DotNetEnv;
+using Share.GrpcClient;
+using GrpcService;
+using System.Security.Cryptography.X509Certificates;
 
 namespace ChatAppAPI
 {
@@ -87,10 +90,15 @@ namespace ChatAppAPI
             builder.Services.AddScoped<IPasswordResetService, PasswordResetService>();
             builder.Services.AddHttpContextAccessor();
             builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+            
 
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddGrpc();
+
+
+
+            builder.Services.AddScoped<IGrpcClient, GrpcClient>();
 
             builder.Services.AddSwaggerGen(c =>
             {

@@ -10,7 +10,7 @@ namespace ChatService.Mapping
 {
     public static class MessageMapper
     {
-        public static MessageResponse MessageToResponse(this Messages message)
+        public static MessageResponse MapToResponse(this Messages message)
         {
             return new MessageResponse
             {

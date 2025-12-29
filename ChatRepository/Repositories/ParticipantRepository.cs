@@ -1,6 +1,7 @@
 ﻿using ChatRepository.Data;
 using ChatRepository.Models;
 using Microsoft.EntityFrameworkCore;
+using Share.Repoitories;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,19 +10,19 @@ using System.Threading.Tasks;
 
 namespace ChatRepository.Repositories
 {
-    public class ParticipantRepository : IParticipantRepository
+    public class ParticipantRepository : GenericRepository<Participants>, IParticipantRepository
     {
         private readonly ChatDbContext _context;
-        public ParticipantRepository(ChatDbContext context)
+        public ParticipantRepository(ChatDbContext context) : base(context)
         {
             _context = context;
         }
 
-        public  Task AddParticipantAsync(Participants participant)
-        {
-            _context.Participants.AddAsync(participant);
-            return _context.SaveChangesAsync();
-        }
+        //public  Task AddParticipantAsync(Participants participant)
+        //{
+        //    _context.Participants.AddAsync(participant);
+        //    return _context.SaveChangesAsync();
+        //}
 
         public async Task<IEnumerable<Participants>> GetBanChatParticipantsByConversationIdAsync(Guid conversationId)
         {
@@ -57,18 +58,18 @@ namespace ChatRepository.Repositories
             }
             else
             {
-                throw new KeyNotFoundException("Participant not found.");
+                return null;
             }
         }
-        public Task SaveChangesAsync()
-        {
-            return _context.SaveChangesAsync();
-        }
+        //public Task SaveChangesAsync()
+        //{
+        //    return _context.SaveChangesAsync();
+        //}
 
-        public Task UpdateParticipantAsync(Participants participant)
-        {
-            _context.Participants.Update(participant);
-            return _context.SaveChangesAsync();
-        }
+        //public Task UpdateParticipantAsync(Participants participant)
+        //{
+        //    _context.Participants.Update(participant);
+        //    return _context.SaveChangesAsync();
+        //}
     }
 }
