@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace UserRepository.Admin
+namespace Share.Admin
 {
     public class AdminAccountSettings
     {

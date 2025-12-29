@@ -39,6 +39,7 @@ namespace APIGateway
                     c.SwaggerEndpoint("https://user.fastchat1005.xyz/swagger/v1/swagger.json", "User Service");
                     c.SwaggerEndpoint("https://chat.fastchat1005.xyz/swagger/v1/swagger.json", "Chat Service");
                     c.SwaggerEndpoint("https://notification.fastchat1005.xyz/swagger/v1/swagger.json", "Notification Service");
+                    c.SwaggerEndpoint("https://social.fastchat1005.xyz/swagger/v1/swagger.json", "Social Service");
                 }
 
                 // Tắt validator để tránh lỗi vặt trên UI

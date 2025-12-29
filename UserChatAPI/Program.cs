@@ -1,4 +1,4 @@
-﻿using ChatAppAPI.Jwt;
+﻿
 using ChatRepository.Data;
 using ChatRepository.Repositories;
 using ChatService.Implement;
@@ -14,16 +14,18 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Share.Services;
 using System.Text;
-using UserService.Cloudinaries;
+
 using UserService.Services;
 // Thêm namespace này để dùng SqlException
 using Microsoft.Data.SqlClient;
-using UserRepository.Admin;
+
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.HttpOverrides;
 using DotNetEnv;
 using Share.GrpcClient;
+using Share.Cloudinaries;
+using Share.Jwt;
 
 namespace ChatApi
 {

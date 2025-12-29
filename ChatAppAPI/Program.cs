@@ -1,4 +1,4 @@
-﻿using ChatAppAPI.Jwt;
+﻿
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -7,12 +7,10 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Share.Services;
 using System.Text;
-using UserRepository.Admin;
 using UserRepository.Data;
 using UserRepository.Models;
 using UserRepository.Repositories;
-using UserRepository.VerifyEmail;
-using UserService.Cloudinaries;
+
 using UserService.Repositories;
 using UserService.Services;
 using Microsoft.Data.SqlClient;
@@ -22,6 +20,10 @@ using DotNetEnv;
 using Share.GrpcClient;
 using GrpcService;
 using System.Security.Cryptography.X509Certificates;
+using Share.Cloudinaries;
+using Share.Admin;
+using Share.VerifyEmail;
+using Share.Jwt;
 
 namespace ChatAppAPI
 {

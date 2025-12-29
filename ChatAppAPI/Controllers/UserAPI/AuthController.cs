@@ -1,9 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System;
 using UserService.Services;
-using UserRepository.Admin;
+
 using Microsoft.AspNetCore.Identity.Data;
 using UserRepository.Model.Request;
+using Share.Admin;
 
 
 

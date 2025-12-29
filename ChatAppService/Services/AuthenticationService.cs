@@ -1,8 +1,8 @@
 ﻿
-using ChatAppAPI.Jwt;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Share.Jwt;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;

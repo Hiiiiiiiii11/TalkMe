@@ -1,4 +1,4 @@
-﻿namespace ChatAppAPI.Jwt
+﻿namespace Share.Jwt
 {
     public class JwtSettings
     {

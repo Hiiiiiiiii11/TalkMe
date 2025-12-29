@@ -1,5 +1,5 @@
 ﻿
-using ChatAppAPI.Jwt;
+
 using CloudinaryDotNet;
 using DotNetEnv;
 using GrpcService;
@@ -10,14 +10,16 @@ using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using Share.Cloudinaries;
 using Share.GrpcClient;
+using Share.Jwt;
 using Share.Services;
 using SocialRepository.Data;
 using SocialRepository.Repositories;
 using SocialService.Services;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using UserService.Cloudinaries;
+
 
 namespace SocialApi
 {
