@@ -15,7 +15,7 @@
       - chatapi
       - notificationapi
       - userapi
-      - ocialapi 
+      - socialapi 
       - apigateway # <--- Thêm dependency này
     networks:
       - backend
