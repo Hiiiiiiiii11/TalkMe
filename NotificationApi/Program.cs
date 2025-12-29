@@ -1,4 +1,4 @@
-﻿using ChatAppAPI.Jwt;
+﻿
 using GrpcService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +16,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.HttpOverrides;
 using DotNetEnv;
 using Share.GrpcClient;
+using Share.Jwt;
 
 namespace NotificationApi
 {
