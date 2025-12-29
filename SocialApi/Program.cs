@@ -4,6 +4,7 @@ using CloudinaryDotNet;
 using DotNetEnv;
 using GrpcService;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Data.SqlClient;
@@ -148,6 +149,16 @@ namespace SocialApi
                 builder.Services.AddGrpcClient<NotificationGrpcService.NotificationGrpcServiceClient>(o =>
                     o.Address = new Uri(notificationServiceUrl));
             }
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100MB
+            });
+
+            builder.Services.Configure<FormOptions>(options =>
+            {
+                options.MultipartBodyLengthLimit = 100 * 1024 * 1024; // 100MB
+            });
+
             builder.Services.AddScoped<IGrpcClient, GrpcClient>();
             builder.Services.AddSwaggerGen(c =>
             {
