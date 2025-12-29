@@ -69,6 +69,10 @@ jobs:
             docker-compose up -d --build --force-recreate notificationapi
             docker-compose up --force-recreate -d notificationapi
 
+            echo "🚀 Building Socialapi..."
+            docker-compose up -d --build --force-recreate socialapi
+            docker-compose up --force-recreate -d socialapi
+
             echo "🚀 Building NGHINX..."
             docker-compose up -d --build --force-recreate nginx
             docker-compose up --force-recreate -d nginx
