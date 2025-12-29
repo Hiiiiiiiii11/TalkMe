@@ -21,22 +21,22 @@ namespace Share.Services
             if (file == null || file.Length == 0)
                 throw new ArgumentException("File ảnh không được để trống.");
 
+            if (!file.ContentType.StartsWith("image/"))
+                throw new ArgumentException("File không phải ảnh hợp lệ.");
+
             using var stream = file.OpenReadStream();
 
             var uploadParams = new ImageUploadParams
             {
                 File = new FileDescription(file.FileName, stream),
 
-                // Lưu vào thư mục riêng cho gọn
                 Folder = "fastchat/posts/images",
 
-                // Tự động chọn định dạng tối ưu (WebP/Avif)
-                Format = "auto",
-
-                // Transformation: 
-                // - Quality("auto"): Nén thông minh giảm dung lượng nhưng vẫn nét
-                // - Width(1080).Crop("limit"): Nếu ảnh quá to (4k) thì thu về 1080p, nếu nhỏ hơn thì giữ nguyên
-                Transformation = new Transformation().Quality("auto").Width(1080).Crop("limit")
+                Transformation = new Transformation()
+                    .Quality("auto")
+                    .FetchFormat("auto")   // ✅ ĐÚNG CÁCH
+                    .Width(1080)
+                    .Crop("limit")
             };
 
             var result = await _cloudinary.UploadAsync(uploadParams);
@@ -46,6 +46,9 @@ namespace Share.Services
 
             return result.SecureUrl.AbsoluteUri;
         }
+
+
+
 
         public async Task<string> UploadPostVideoAsync(IFormFile file)
         {

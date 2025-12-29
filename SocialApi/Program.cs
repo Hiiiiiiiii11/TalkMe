@@ -193,8 +193,8 @@ namespace SocialApi
                                 "https://www.fastchat1005.xyz"
                             )
                             .AllowAnyHeader()
-                            .AllowAnyMethod()
-                            .AllowCredentials(); // ⭐ BẮT BUỘC nếu dùng JWT / cookie
+                            .AllowAnyMethod();
+
                     });
                 }
 

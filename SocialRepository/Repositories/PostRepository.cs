@@ -17,6 +17,13 @@ namespace SocialRepository.Repositories
         {
             _context = context;
         }
+        public async Task<Posts> GetByIdWithMediaAsync(Guid id)
+        {
+            return await _context.Posts
+                .Include(p => p.PostMedias)
+                .FirstOrDefaultAsync(p => p.Id == id);
+        }
+
 
         public async Task<IEnumerable<Posts>> GetPostAsync(int take = 10, DateTime? before = null, Guid? userId = null)
         {
