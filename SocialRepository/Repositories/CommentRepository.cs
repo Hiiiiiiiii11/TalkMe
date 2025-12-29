@@ -1,9 +1,9 @@
-﻿using Share.Repoitories;
+﻿using Microsoft.EntityFrameworkCore;
+using Share.Repoitories;
 using SocialRepository.Data;
 using SocialRepository.Model;
 using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;

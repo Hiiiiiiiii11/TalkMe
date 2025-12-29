@@ -18,7 +18,7 @@ namespace SocialService.Services
 
         Task<CommentResponse> GetCommentByIdAsync(Guid commentId);
 
-        Task<CommentResponse> CreateCommentAsync(CommentRequest request);
+        Task<CommentResponse> CreateCommentAsync(Guid postId,Guid userId, CommentRequest request);
 
         Task<CommentResponse> UpdateCommentAsync(Guid commentId, CommentUpdateRequest request);
 

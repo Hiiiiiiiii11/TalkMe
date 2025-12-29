@@ -13,7 +13,7 @@ namespace SocialService.Services
         Task<IEnumerable<PostResponse>>GetPublicPostAsync(int take = 10, DateTime? before = null);
         Task<IEnumerable<PostResponse>> GetUserPostAsync(Guid userId, int take = 10, DateTime? before = null);
         Task<PostResponse> GetPostByIdAsync(Guid postId);
-        Task<PostResponse> CreatePostAsync(PostRequest request);
+        Task<PostResponse> CreatePostAsync(Guid userId, PostRequest request); 
         Task<PostResponse> UpdatePostAsync(Guid postId, PostUpdateRequest request);
         Task DeletePostAsync(Guid postId);
     }

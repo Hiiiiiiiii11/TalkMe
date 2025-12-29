@@ -1,4 +1,5 @@
-﻿using SocialRepository.Model;
+﻿using Share.GrpcClient;
+using SocialRepository.Model;
 using SocialRepository.Model.Request;
 using SocialRepository.Model.Response;
 using SocialRepository.Repositories;
@@ -14,20 +15,23 @@ namespace SocialService.Services
     {
         private readonly ICommentRepository _commentRepository;
         private readonly IPostRepository _postRepository;
-        public CommentService(ICommentRepository commentRepository, IPostRepository postRepository)
+        private readonly IGrpcClient _grpcClient;
+        public CommentService(ICommentRepository commentRepository, IPostRepository postRepository, IGrpcClient grpcClient)
         {
             _commentRepository = commentRepository;
             _postRepository = postRepository;
+            _grpcClient = grpcClient;
+
         }
-        public async Task<CommentResponse> CreateCommentAsync(CommentRequest request)
+        public async Task<CommentResponse> CreateCommentAsync(Guid postId,Guid userId, CommentRequest request)
         {
-            var post = await _postRepository.GetByIdAsync(request.PostId);
+            var post = await _postRepository.GetByIdAsync(postId);
             if (post == null) throw new Exception("Bài viết không tồn tại.");
             var newComment = new Comments
             {
                 Id = Guid.NewGuid(),
-                PostId = request.PostId,
-                UserId = request.UserId,
+                PostId = postId,
+                UserId = userId,
                 Content = request.Content,
                 ParentCommentId = request.ParentCommentId, // Hỗ trợ Reply
                 CreatedAt = DateTime.UtcNow
@@ -38,7 +42,10 @@ namespace SocialService.Services
             post.TotalComments++;
              _postRepository.Update(post);
             await _postRepository.SaveChangesAsync();
-            return await MapToResponseAsync(newComment);
+
+            var response = await MapToResponseAsync(newComment);
+            await EnrichUserDataAsync(response);
+            return response;
         }
 
         public async Task DeleteCommentAsync(Guid commentId)
@@ -76,7 +83,15 @@ namespace SocialService.Services
         {
             // Gọi hàm Repo lấy comment gốc (ParentId = null)
             var comments = await _commentRepository.GetCommentsAsync(postId, take, before);
-            return await MapListToResponseAsync(comments);
+           var responseList = new List<CommentResponse>();
+            foreach (var c in comments)
+            {
+                // Gọi MapToResponseAsync cho từng phần tử để lấy CountReplies
+                responseList.Add(await MapToResponseAsync(c));
+            }
+            // Gọi hàm enrich user data cho danh sách
+            await EnrichUserDataForListAsync(responseList);
+            return responseList;
         }
 
         public async Task<IEnumerable<CommentResponse>> GetRepliesByCommentIdAsync(Guid commentId, int take = 10, DateTime? before = null)
@@ -85,7 +100,15 @@ namespace SocialService.Services
             // Logic: Where(c => c.ParentCommentId == commentId)
             var replies = await _commentRepository.GetRepliesAsync(commentId, take, before);
 
-            return await MapListToResponseAsync(replies);
+           var responseList = new List<CommentResponse>();
+            foreach (var c in replies)
+            {
+                // Gọi MapToResponseAsync cho từng phần tử để lấy CountReplies
+                responseList.Add(await MapToResponseAsync(c));
+            }
+            // Gọi hàm enrich user data cho danh sách
+            await EnrichUserDataForListAsync(responseList);
+            return responseList;
         }
 
         public async Task<CommentResponse> UpdateCommentAsync(Guid commentId, CommentUpdateRequest request)
@@ -101,23 +124,44 @@ namespace SocialService.Services
             // Lưu ý: UpdateAsync của GenericRepo thường chưa SaveChanges, cần gọi thêm:
             await _commentRepository.SaveChangesAsync();
 
-            return await MapToResponseAsync(comment);
+            var response = await MapToResponseAsync(comment);
+            await EnrichUserDataAsync(response);
+            return response;
         }
-        private async Task<IEnumerable<CommentResponse>> MapListToResponseAsync(IEnumerable<Comments> comments)
+        private async Task EnrichUserDataAsync(CommentResponse comment)
         {
-            var responseList = new List<CommentResponse>();
-            foreach (var c in comments)
+            try
             {
-                // Gọi MapToResponseAsync cho từng phần tử để lấy CountReplies
-                responseList.Add(await MapToResponseAsync(c));
+                var result = await _grpcClient.GetUserByIdAsync(comment.UserId.ToString());
+
+                if (result.IsSuccess && result.Data != null)
+                {
+                    comment.UserDisplayName = result.Data.DisplayName;
+                    comment.UserAvatarUrl = result.Data.AvatarUrl;
+                }
+                else
+                {
+                    comment.UserDisplayName = "Unknown User";
+                    comment.UserAvatarUrl = "";
+                }
             }
-            return responseList;
+            catch
+            {
+                comment.UserDisplayName = "Unknown User";
+            }
+        }
+
+        private async Task EnrichUserDataForListAsync(List<CommentResponse> comments)
+        {
+            if (!comments.Any()) return;
+
+            // Chạy song song để tối ưu tốc độ
+            var tasks = comments.Select(c => EnrichUserDataAsync(c));
+            await Task.WhenAll(tasks);
         }
         private async Task<CommentResponse> MapToResponseAsync(Comments comment)
         {
-            // Logic tương tự hàm trên nhưng cho 1 object
             int replyCount = 0;
-            // Chỉ đếm reply nếu đây là comment gốc (ParentId == null)
             if (comment.ParentCommentId == null)
             {
                 replyCount = await _commentRepository.CountRepliesAsync(comment.Id);
@@ -127,8 +171,12 @@ namespace SocialService.Services
             {
                 Id = comment.Id,
                 UserId = comment.UserId,
-                // UserDisplayName = ..., // TODO: Gọi gRPC User Service
-                // UserAvatarUrl = ...,   // TODO: Gọi gRPC User Service
+                PostId = comment.PostId, // Đừng quên map PostId
+
+                // Mặc định ban đầu
+                UserDisplayName = "Loading...",
+                UserAvatarUrl = "",
+
                 Content = comment.Content,
                 CreatedAt = comment.CreatedAt,
                 UpdatedAt = comment.UpdatedAt,

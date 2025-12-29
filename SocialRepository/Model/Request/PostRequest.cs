@@ -9,8 +9,6 @@ namespace SocialRepository.Model.Request
 {
     public class PostRequest
     {
-        public Guid UserId { get; set; }
-
         // Cho phép null vì có thể chỉ đăng ảnh không cần caption
         public string? Content { get; set; }
 

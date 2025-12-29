@@ -60,7 +60,6 @@ namespace SocialApi.Controllers
         }
 
         [HttpPost]
-        [HttpPost]
         public async Task<IActionResult> CreatePost([FromForm] PostRequest request)
         {
             // Lấy ID người dùng hiện tại từ Token
@@ -73,11 +72,8 @@ namespace SocialApi.Controllers
 
             try
             {
-                // QUAN TRỌNG: Ghi đè UserId trong request bằng ID từ Token
-                // Để đảm bảo người đăng bài chính là người đang đăng nhập
-                request.UserId = currentUserId.Value;
-
-                var post = await _postService.CreatePostAsync(request);
+                //lấy user Id từ token đang đăng nhập
+                var post = await _postService.CreatePostAsync(currentUserId.Value,request);
                 return Ok(post);
             }
             catch (Exception ex)

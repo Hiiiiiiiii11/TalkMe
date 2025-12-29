@@ -5,6 +5,7 @@ using NotificationRepository.Model.Response;
 using NotificationRepository.Models;
 using NotificationRepository.Repositories;
 using NotificationService.Mapping;
+using Share.GrpcClient;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,16 +18,14 @@ namespace NotificationService.Services
     public class NotificationService : INotificationService
     {
         private readonly INotificationRepository _notificationRepository;
-        private readonly ConversationGrpcService.ConversationGrpcServiceClient _conversationClient;
-        private readonly MessageGrpcService.MessageGrpcServiceClient _messageClient;
-        private readonly UserGrpcService.UserGrpcServiceClient _userGrpcServiceClient;
+        private readonly IGrpcClient _grpcClient;
 
-        public NotificationService(INotificationRepository notificationRepository, ConversationGrpcService.ConversationGrpcServiceClient conversationGrpcServiceClient, MessageGrpcService.MessageGrpcServiceClient messageGrpcServiceClient , UserGrpcService.UserGrpcServiceClient userGrpcServiceClient)
+        public NotificationService(INotificationRepository notificationRepository, IGrpcClient grpcClient)
         {
             _notificationRepository = notificationRepository;
-            _conversationClient = conversationGrpcServiceClient;
-            _messageClient = messageGrpcServiceClient;
-            _userGrpcServiceClient = userGrpcServiceClient;
+            _grpcClient = grpcClient;
+
+
 
         }
         //tạo thông báo bất kì đến user(vd: mời vào nhóm, hệ thống,...)
@@ -34,14 +33,18 @@ namespace NotificationService.Services
         {
             var notification = new Notification
             {
+                Id = Guid.NewGuid(),
                 UserId = request.receiverId,
-                Type = "System",
+                Type = request.Type ?? "System",
                 ConversationId = request.ConversationId,
                 DataJson = request.DataJson,
                 CreatedAt = DateTime.UtcNow,
                 IsRead = false
             };
+
             await _notificationRepository.AddAsync(notification);
+            await _notificationRepository.SaveChangesAsync();
+
             return new NotificationResponse
             {
                 Id = notification.Id,
@@ -151,12 +154,21 @@ namespace NotificationService.Services
         //tách logic để dễ maintain
         public async Task<NotificationMessageResponse> CreateMessageNotificationAsync(CreateMessageNotificationRequest request)
         {
-            var conversationReply = await _conversationClient.GetConversationByIdAsync(
-                new GetConversationByIdRequest { Id = request.ConversationId.ToString() });
+            //var conversationReply = await _conversationClient.GetConversationByIdAsync(
+            //    new GetConversationByIdRequest { Id = request.ConversationId.ToString() });
+            var convResult = await _grpcClient.GetConversationByIdAsync(request.ConversationId.ToString());
+            if (!convResult.IsSuccess || convResult.Data == null)
+            {
+                throw new Exception($"Không tìm thấy hội thoại: {convResult.ErrorMessage}");
+            }
+            var conversationReply = convResult.Data;
 
-            var messageReply = await _messageClient.GetMessageByIdAsync(
-                new GetMessageByIdRequest { Id = request.MessageId.ToString() });
-
+            var msgResult = await _grpcClient.GetMessageByIdAsync(request.MessageId.ToString());
+            if (!msgResult.IsSuccess || msgResult.Data == null)
+            {
+                throw new Exception($"Không tìm thấy tin nhắn: {msgResult.ErrorMessage}");
+            }
+            var messageReply = msgResult.Data;
             bool isPrivate = conversationReply.Members.Count == 2;
 
             if (isPrivate)
@@ -179,47 +191,47 @@ namespace NotificationService.Services
             if (receiverId == null) throw new Exception("Receiver not found for private chat");
 
             // Lấy thông tin người gửi
-            var senderUser = await _userGrpcServiceClient.GetUserByIdAsync(new GetUserByIdRequest
+            var receiverIdStr = conversationReply.Members.FirstOrDefault(m => m != messageReply.SenderId);
+            if (string.IsNullOrEmpty(receiverIdStr))
+                throw new Exception("Receiver not found in private chat");
+
+            // Lấy thông tin người gửi qua Wrapper
+            string senderName = "Unknown";
+            string senderAvatar = "";
+
+            var userResult = await _grpcClient.GetUserByIdAsync(messageReply.SenderId);
+            if (userResult.IsSuccess && userResult.Data != null)
             {
-                Id = messageReply.SenderId
-            });
+                senderName = userResult.Data.DisplayName;
+                senderAvatar = userResult.Data.AvatarUrl;
+            }
 
             var notification = new Notification
             {
-                UserId = Guid.Parse(receiverId),
+                Id = Guid.NewGuid(),
+                UserId = Guid.Parse(receiverIdStr),
                 ConversationId = request.ConversationId,
                 MessageId = request.MessageId,
                 Type = "Message",
+                CreatedAt = DateTime.UtcNow,
+                IsRead = false,
+
+                // Chat riêng: Tiêu đề là Tên người gửi
                 DataJson = JsonSerializer.Serialize(new
                 {
-                    ConversationName = senderUser.DisplayName,  // ✅ tên người gửi
-                    ConversationAvatar = senderUser.AvatarUrl, // ✅ avatar người gửi
+                    ConversationName = senderName,
+                    ConversationAvatar = senderAvatar,
                     MessageContent = messageReply.Content,
                     SentAt = messageReply.SentAt,
-                    SenderName = senderUser.DisplayName,
-                    SenderAvatar = senderUser.AvatarUrl
-                }),
-                CreatedAt = DateTime.UtcNow,
-                IsRead = false
+                    SenderId = messageReply.SenderId,
+                    SenderName = senderName
+                })
             };
 
             await _notificationRepository.AddAsync(notification);
+            await _notificationRepository.SaveChangesAsync();
 
-            return new NotificationMessageResponse
-            {
-                Id = notification.Id,
-                UserId = notification.UserId,
-                ConversationId = notification.ConversationId,
-                MessageId = notification.MessageId,
-                Type = notification.Type,
-                DataJson = notification.DataJson,
-                CreatedAt = notification.CreatedAt,
-                IsRead = notification.IsRead,
-                ConversationName = senderUser.DisplayName,
-                ConversationAvatar = senderUser.AvatarUrl,
-                MessageContent = messageReply.Content,
-                MessageSentAt = DateTime.Parse(messageReply.SentAt)
-            };
+            return MapToMessageResponse(notification, senderName, senderAvatar, messageReply.Content, messageReply.SentAt);
         }
 
         private async Task<NotificationMessageResponse> CreateGroupMessageNotificationAsync(
@@ -228,6 +240,12 @@ namespace NotificationService.Services
             CreateMessageNotificationRequest request)
         {
             // Tất cả thành viên trừ sender
+            string senderName = "Unknown";
+            var userResult = await _grpcClient.GetUserByIdAsync(messageReply.SenderId);
+            if (userResult.IsSuccess && userResult.Data != null)
+            {
+                senderName = userResult.Data.DisplayName;
+            }
             var targetUserIds = conversationReply.Members
                 .Where(m => m != messageReply.SenderId)
                 .Select(Guid.Parse)
@@ -243,36 +261,27 @@ namespace NotificationService.Services
                     ConversationId = request.ConversationId,
                     MessageId = request.MessageId,
                     Type = "Message",
+                    CreatedAt = DateTime.UtcNow,
+                    IsRead = false,
                     DataJson = JsonSerializer.Serialize(new
                     {
                         ConversationName = conversationReply.Name,
                         ConversationAvatar = conversationReply.AvartarGroup,
-                        MessageContent = messageReply.Content,
-                        SentAt = messageReply.SentAt
+                        MessageContent = $"{senderName}: {messageReply.Content}",
+                        SentAt = messageReply.SentAt,
+                        SenderId = messageReply.SenderId,
+                        GroupId = conversationReply.Id
                     }),
-                    CreatedAt = DateTime.UtcNow,
-                    IsRead = false
+                   
                 };
 
                 await _notificationRepository.AddAsync(notification);
                 lastNotification = notification;
             }
+            await _notificationRepository.SaveChangesAsync();
+            if (lastNotification == null) return new NotificationMessageResponse();
 
-            return new NotificationMessageResponse
-            {
-                Id = lastNotification!.Id,
-                UserId = lastNotification.UserId,
-                ConversationId = lastNotification.ConversationId,
-                MessageId = lastNotification.MessageId,
-                Type = lastNotification.Type,
-                DataJson = lastNotification.DataJson,
-                CreatedAt = lastNotification.CreatedAt,
-                IsRead = lastNotification.IsRead,
-                ConversationName = conversationReply.Name,
-                ConversationAvatar = conversationReply.AvartarGroup,
-                MessageContent = messageReply.Content,
-                MessageSentAt = DateTime.Parse(messageReply.SentAt)
-            };
+            return MapToMessageResponse(lastNotification, conversationReply.Name, conversationReply.AvartarGroup, messageReply.Content, messageReply.SentAt);
         }
 
 
@@ -349,6 +358,24 @@ namespace NotificationService.Services
                 .Where(n => n.Type == "System")
                 .Select(n => n.ToMessageResponse())
                 .ToList();
+        }
+        private NotificationMessageResponse MapToMessageResponse(Notification n, string convName, string convAvatar, string content, string sentAt)
+        {
+            return new NotificationMessageResponse
+            {
+                Id = n.Id,
+                UserId = n.UserId,
+                ConversationId = n.ConversationId,
+                MessageId = n.MessageId,
+                Type = n.Type,
+                DataJson = n.DataJson,
+                CreatedAt = n.CreatedAt,
+                IsRead = n.IsRead,
+                ConversationName = convName,
+                ConversationAvatar = convAvatar,
+                MessageContent = content,
+                MessageSentAt = DateTime.TryParse(sentAt, out var d) ? d : DateTime.UtcNow
+            };
         }
     }
 }

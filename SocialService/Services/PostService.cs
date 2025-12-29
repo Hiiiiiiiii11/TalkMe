@@ -1,4 +1,6 @@
-﻿using Share.Services;
+﻿using GrpcService;
+using Share.GrpcClient;
+using Share.Services;
 using SocialRepository.Model;
 using SocialRepository.Model.Request;
 using SocialRepository.Model.Response;
@@ -16,14 +18,16 @@ namespace SocialService.Services
         private readonly IPostRepository _postRepository;
         private readonly IPostMediaRepository _postMediaRepository;
         private readonly IMediaUploadService _mediaUploadService;
+        private readonly IGrpcClient _grpcClient;
 
-        public PostService(IPostRepository postRepository, IPostMediaRepository postMediaRepository, IMediaUploadService mediaUploadService)
+        public PostService(IPostRepository postRepository, IPostMediaRepository postMediaRepository, IMediaUploadService mediaUploadService, IGrpcClient grpcClient   )
         {
             _postRepository = postRepository;
             _postMediaRepository = postMediaRepository;
             _mediaUploadService = mediaUploadService;
+            _grpcClient = grpcClient ;
         }
-        public async Task<PostResponse> CreatePostAsync(PostRequest request)
+        public async Task<PostResponse> CreatePostAsync(Guid userId, PostRequest request)
         {
             // ---------------------------------------------------------
             // BƯỚC 1: UPLOAD MEDIA LÊN CLOUD TRƯỚC (Chưa đụng vào DB)
@@ -85,7 +89,7 @@ namespace SocialService.Services
             var newPost = new Posts
             {
                 Id = newPostId, // Dùng ID đã tạo bên trên
-                UserId = request.UserId,
+                UserId = userId,
                 Content = request.Content,
                 PrivacyLevel = request.PrivacyLevel,
                 CreatedAt = DateTime.UtcNow,
@@ -115,7 +119,9 @@ namespace SocialService.Services
             // ---------------------------------------------------------
             // BƯỚC 3: TRẢ VỀ KẾT QUẢ
             // ---------------------------------------------------------
-            return MapToResponse(newPost);
+            var response = MapToResponse(newPost);
+            await EnrichUserDataAsync(response);
+            return response;
         }
 
         public async Task DeletePostAsync(Guid postId)
@@ -136,13 +142,21 @@ namespace SocialService.Services
             {
                 return null;
             }
-            return MapToResponse(post);
+            var response = MapToResponse(post);
+            await EnrichUserDataAsync(response);
+            return response;
         }
 
         public async Task<IEnumerable<PostResponse>> GetPublicPostAsync(int take = 10, DateTime? before = null)
         {
             var posts = await _postRepository.GetPostAsync(take, before, null);
-            return posts.Select(MapToResponse);
+
+            var responseList = posts.Select(MapToResponse).ToList();
+
+            // [UPDATE] Gọi gRPC song song cho cả list để tối ưu
+            await EnrichUserDataForListAsync(responseList);
+
+            return responseList;
         }
         //public async Task<IEnumerable<PostResponse>> GetPublicPostAsync(int take = 10, DateTime? before = null)
         //{
@@ -153,8 +167,15 @@ namespace SocialService.Services
 
         public async Task<IEnumerable<PostResponse>> GetUserPostAsync(Guid userId, int take = 10, DateTime? before = null)
         {
-            var posts =await _postRepository.GetPostAsync(take, before, userId);
-            return posts.Select(MapToResponse);
+            var posts = await _postRepository.GetPostAsync(take, before, userId);
+
+            var responseList = posts.Select(MapToResponse).ToList();
+
+            // [UPDATE] Gọi gRPC lấy thông tin user
+            // Vì tất cả bài viết đều của 1 user, ta có thể tối ưu hơn nhưng dùng hàm chung vẫn ok
+            await EnrichUserDataForListAsync(responseList);
+
+            return responseList;
         }
 
         public async Task<PostResponse> UpdatePostAsync(Guid postId, PostUpdateRequest request)
@@ -256,6 +277,41 @@ namespace SocialService.Services
             // 6. Trả về kết quả
             return MapToResponse(post);
         }
+
+        private async Task EnrichUserDataAsync(PostResponse post)
+        {
+            try
+            {
+                // Gọi qua Wrapper Client
+                var result = await _grpcClient.GetUserByIdAsync(post.UserId.ToString());
+
+                if (result.IsSuccess && result.Data != null)
+                {
+                    post.UserDisplayName = result.Data.DisplayName;
+                    post.UserAvatar = result.Data.AvatarUrl;
+                }
+                else
+                {
+                    post.UserDisplayName = "Unknown User";
+                    post.UserAvatar = ""; // Hoặc avatar mặc định
+                }
+            }
+            catch
+            {
+                // Fallback nếu lỗi kết nối
+                post.UserDisplayName = "Unknown User";
+            }
+        }
+
+        private async Task EnrichUserDataForListAsync(List<PostResponse> posts)
+        {
+            if (!posts.Any()) return;
+
+            // Chạy song song tất cả request để nhanh hơn
+            var tasks = posts.Select(post => EnrichUserDataAsync(post));
+            await Task.WhenAll(tasks);
+        }
+
         private bool IsVideo(string extension)
         {
             return extension == ".mp4" || extension == ".mov" || extension == ".avi" || extension == ".mkv";
@@ -266,6 +322,11 @@ namespace SocialService.Services
             {
                 Id = post.Id,
                 UserId = post.UserId,
+
+                // Mặc định ban đầu (sẽ được điền sau bởi EnrichUserDataAsync)
+                UserDisplayName = "Loading...",
+                UserAvatar = "",
+
                 Content = post.Content,
                 PrivacyLevel = post.PrivacyLevel,
                 TotalLikes = post.TotalLikes,

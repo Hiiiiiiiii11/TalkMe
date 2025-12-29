@@ -7,6 +7,8 @@ namespace SocialRepository.Model.Response
     {
         public Guid Id { get; set; }
         public Guid UserId { get; set; }
+        public string UserDisplayName { get; set; }
+        public string UserAvatar { get; set; }
         public string Content { get; set; }
         public int PrivacyLevel { get; set; }
 

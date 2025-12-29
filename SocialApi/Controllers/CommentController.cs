@@ -21,22 +21,21 @@ namespace SocialApi.Controllers
             _currentUserService = currentUserService;
         }
         [HttpPost("{postId}/comments")]
-        public async Task<IActionResult> AddComment(CommentRequest request)
+        public async Task<IActionResult> AddComment(Guid postId,CommentRequest request)
         {
             var currentUserId = _currentUserService.Id;
             if (currentUserId == null) return Unauthorized();
             try
             {
-                request.UserId = currentUserId.Value;
 
-                var comment = await _commentService.CreateCommentAsync(request);
+                var comment = await _commentService.CreateCommentAsync(postId, currentUserId.Value, request);
                 return Ok(comment);
             }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
-
+             
         }
         [HttpDelete("comments/{commentId}")]
         public async Task<IActionResult> DeleteComment(Guid commentId)
