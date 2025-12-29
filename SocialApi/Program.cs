@@ -190,7 +190,8 @@ namespace SocialApi
                     {
                         policy.WithOrigins(
                                 "https://fastchat1005.xyz",       // Domain chính (Swagger UI)
-                                "https://www.fastchat1005.xyz"
+                                "https://www.fastchat1005.xyz",
+                                "https://social.fastchat1005.xyz"
                               )
                               .AllowAnyHeader()
                               .AllowAnyMethod();
@@ -264,6 +265,52 @@ namespace SocialApi
                 app.UseCors("AllowAll");
             }
 
+            //if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
+            //{
+            //    int maxRetries = 10;
+            //    int delayInSeconds = 5;
+
+            //    for (int i = 0; i < maxRetries; i++)
+            //    {
+            //        try
+            //        {
+            //            using (var scope = app.Services.CreateScope())
+            //            {
+            //                var services = scope.ServiceProvider;
+            //                var dbContext = services.GetRequiredService<SocialDbContext>();
+
+            //                var defaultConnStr = builder.Configuration.GetConnectionString("SocialDbConnection");
+            //                var dbName = new SqlConnectionStringBuilder(defaultConnStr).InitialCatalog;
+            //                var masterConnStr = defaultConnStr.Replace($"Database={dbName}", "Database=master");
+
+            //                using (var connection = new SqlConnection(masterConnStr))
+            //                {
+            //                    connection.Open();
+            //                    using (var command = connection.CreateCommand())
+            //                    {
+            //                        command.CommandText = $"IF DB_ID('{dbName}') IS NULL CREATE DATABASE {dbName}";
+            //                        command.ExecuteNonQuery();
+            //                    }
+            //                }
+
+            //                dbContext.Database.EnsureCreated();
+            //                Console.WriteLine($"✅ Database '{dbName}' and schema have been created successfully.");
+
+            //                break;
+            //            }
+            //        }
+            //        catch (SqlException ex)
+            //        {
+            //            Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+            //            Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            Console.WriteLine($"❌ An unexpected error occurred: {ex.Message}");
+            //            break;
+            //        }
+            //    }
+            //}
             if (app.Environment.IsEnvironment("Production") || app.Environment.IsEnvironment("Docker"))
             {
                 int maxRetries = 10;
@@ -279,9 +326,18 @@ namespace SocialApi
                             var dbContext = services.GetRequiredService<SocialDbContext>();
 
                             var defaultConnStr = builder.Configuration.GetConnectionString("SocialDbConnection");
+
+                            // Kiểm tra chuỗi kết nối
+                            if (string.IsNullOrEmpty(defaultConnStr))
+                            {
+                                Console.WriteLine("❌ ERROR: Connection string 'SocialDbConnection' is null or empty!");
+                                throw new Exception("Connection string not found.");
+                            }
+
                             var dbName = new SqlConnectionStringBuilder(defaultConnStr).InitialCatalog;
                             var masterConnStr = defaultConnStr.Replace($"Database={dbName}", "Database=master");
 
+                            // Tạo Database nếu chưa có
                             using (var connection = new SqlConnection(masterConnStr))
                             {
                                 connection.Open();
@@ -291,21 +347,22 @@ namespace SocialApi
                                     command.ExecuteNonQuery();
                                 }
                             }
+                            Console.WriteLine($"✅ Step 1/2: Database '{dbName}' checked/created.");
 
+                            // Tạo Schema
                             dbContext.Database.EnsureCreated();
-                            Console.WriteLine($"✅ Database '{dbName}' and schema have been created successfully.");
-
+                            Console.WriteLine("✅ Step 2/2: Schema created successfully.");
                             break;
                         }
                     }
                     catch (SqlException ex)
                     {
-                        Console.WriteLine($"❌ Attempt {i + 1} of {maxRetries}: Database is not ready yet. Retrying in {delayInSeconds} seconds... Error: {ex.Message}");
+                        Console.WriteLine($"⚠️ DB not ready ({i + 1}/{maxRetries}): {ex.Message}. Retrying...");
                         Thread.Sleep(TimeSpan.FromSeconds(delayInSeconds));
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"❌ An unexpected error occurred: {ex.Message}");
+                        Console.WriteLine($"❌ Unexpected Error: {ex.Message}");
                         break;
                     }
                 }
