@@ -125,6 +125,28 @@ namespace NotificationApi
                 // Policy cũ của bạn (Allow All)
 
             });
+
+
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFlutterWebAnyPort", policy =>
+                {
+                    policy
+                        .SetIsOriginAllowed(origin =>
+                        {
+                            if (string.IsNullOrEmpty(origin)) return false;
+
+                            var uri = new Uri(origin);
+
+                            // Cho phép Flutter Web từ domain chính, KHÔNG quan tâm port
+                            return uri.Host == "fastchat1005.xyz"
+                                || uri.Host.EndsWith(".fastchat1005.xyz")
+                                || uri.Host == "localhost";
+                        })
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
             builder.Services.AddGrpc();
             var userServiceUrl = builder.Environment.IsProduction()
                 ? "https://userapi:443"
@@ -222,6 +244,7 @@ namespace NotificationApi
             if (builder.Environment.IsProduction())
             {
                 app.UseCors("AllowMainDomain");
+                app.UseCors("AllowFlutterWebAnyPort");
             }
             else
             {
