@@ -134,6 +134,8 @@ namespace ChatAppAPI
                     }
                 });
             });
+
+            //policy cho CORS
             builder.Services.AddCors(options =>
             {
                 if (builder.Environment.IsProduction())
@@ -160,6 +162,27 @@ namespace ChatAppAPI
 
                 // Policy cũ của bạn (Allow All)
 
+            });
+            // Policy mới cho phép Flutter Web từ bất kỳ port nào
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowFlutterWebAnyPort", policy =>
+                {
+                    policy
+                        .SetIsOriginAllowed(origin =>
+                        {
+                            if (string.IsNullOrEmpty(origin)) return false;
+
+                            var uri = new Uri(origin);
+
+                            // Cho phép Flutter Web từ domain chính, KHÔNG quan tâm port
+                            return uri.Host == "fastchat1005.xyz"
+                                || uri.Host.EndsWith(".fastchat1005.xyz")
+                                || uri.Host == "localhost";
+                        })
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
             });
 
             builder.Services.Configure<JwtSettings>(
@@ -209,6 +232,7 @@ namespace ChatAppAPI
             if(builder.Environment.IsProduction())
             {
                 app.UseCors("AllowMainDomain");
+                app.UseCors("AllowFlutterWebAnyPort");
             }
             else
             {
