@@ -28,8 +28,12 @@ namespace UserService.Services
 
         public async Task RequestPasswordResetAsync(PasswordResetRequest request)
         {
-            var user = await _userRepository.GetUserByEmailAsync(request.Email)
-                ?? throw new Exception("Email not found");
+            var user = await _userRepository.GetUserByEmailAsync(request.Email);
+                if (user == null) {
+                throw new Exception("User not exist");
+
+            }
+            await _tokenRepo.DeleteTokensByUserIdAsync(user.Id);
 
             var otp = GenerateOtp();
             var token = new PasswordResetToken
@@ -49,14 +53,21 @@ namespace UserService.Services
 
         public async Task ResetPasswordAsync(ConfirmResetPasswordRequest request)
         {
-            var user = await _userRepository.GetUserByEmailAsync(request.Email)
-                ?? throw new Exception("User not found");
+            var user = await _userRepository.GetUserByEmailAsync(request.Email);
+            if (user == null)
+            {
+                throw new Exception("User not exist");
 
-            var token = await _tokenRepo.GetUnusedValidTokenAsync(user.Id, request.Otp)
-                ?? throw new Exception("Invalid or expired OTP");
+            }
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-           _userRepository.Update(user);
+            var token = await _tokenRepo.GetUnusedValidTokenAsync(user.Id, request.Otp);
+                if (token == null)
+            {
+                throw new Exception("Invalid or expired OTP.");
+            }
+
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            _userRepository.Update(user);
 
             token.IsUsed = true;
              _tokenRepo.Update(token);

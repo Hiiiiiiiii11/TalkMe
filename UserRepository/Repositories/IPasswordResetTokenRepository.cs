@@ -12,7 +12,8 @@ namespace UserRepository.Repositories
     {
         Task<PasswordResetToken?> GetValidTokenAsync(Guid userId, string token);
         Task<PasswordResetToken?> GetUnusedValidTokenAsync(Guid userId, string token);
-       
+        Task DeleteTokensByUserIdAsync(Guid userId);
+
     }
 
 }

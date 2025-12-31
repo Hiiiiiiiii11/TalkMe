@@ -34,6 +34,16 @@ namespace UserRepository.Repositories
                                            && !t.IsUsed
                                            && t.ExpiredAt > DateTime.UtcNow);
         }
+        public async Task DeleteTokensByUserIdAsync(Guid userId)
+        {
+            // Tìm tất cả token của user này
+            var tokens = _context.PasswordResetTokens.Where(t => t.UserId == userId);
+
+            // Xóa hết
+            _context.PasswordResetTokens.RemoveRange(tokens);
+
+            await _context.SaveChangesAsync();
+        }
 
 
     }
