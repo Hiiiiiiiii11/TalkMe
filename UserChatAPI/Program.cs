@@ -167,50 +167,25 @@ namespace ChatApi
             });
             builder.Services.AddCors(options =>
             {
-                if (builder.Environment.IsProduction())
-                {
-                    options.AddPolicy("AllowMainDomain", policy =>
-                    {
-                        policy.WithOrigins(
-                                "https://fastchat1005.xyz",       // Domain chính (Swagger UI)
-                                "https://www.fastchat1005.xyz"
-                              )
-                              .AllowAnyHeader()
-                              .AllowAnyMethod();
-                    });
-                }
-
-                // Policy này cho phép Domain chính gọi vào API này
-                else
-                {
-                    options.AddPolicy("AllowAll", policy =>
-                    {
-                        policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader();
-                    });
-                }
-
-                // Policy cũ của bạn (Allow All)
-               
-            });
-
-            builder.Services.AddCors(options =>
-            {
-                options.AddPolicy("AllowFlutterWebAnyPort", policy =>
+                options.AddPolicy("DefaultCors", policy =>
                 {
                     policy
                         .SetIsOriginAllowed(origin =>
                         {
-                            if (string.IsNullOrEmpty(origin)) return false;
+                            // Cho mobile app (không có Origin)
+                            if (string.IsNullOrEmpty(origin))
+                                return true;
 
                             var uri = new Uri(origin);
 
-                            // Cho phép Flutter Web từ domain chính, KHÔNG quan tâm port
+                            // Flutter Web / Website
                             return uri.Host == "fastchat1005.xyz"
                                 || uri.Host.EndsWith(".fastchat1005.xyz")
                                 || uri.Host == "localhost";
                         })
                         .AllowAnyHeader()
-                        .AllowAnyMethod();
+                        .AllowAnyMethod()
+                        .AllowCredentials();
                 });
             });
 
@@ -262,8 +237,7 @@ namespace ChatApi
             app.UseForwardedHeaders();
             if (builder.Environment.IsProduction())
             {
-                app.UseCors("AllowMainDomain");
-                app.UseCors("AllowFlutterWebAnyPort");
+                app.UseCors("DefaultCors");
             }
             else
             {
