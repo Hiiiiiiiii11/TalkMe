@@ -42,6 +42,8 @@ namespace ChatAppAPI.Controllers.UserAPI
                 {
                     return BadRequest(new { message = "Email, code and new password are required." });
                 }
+                request.Email = request.Email.Trim();
+                request.Otp = request.Otp.Trim();
                 await _resetService.ResetPasswordAsync(request);
                 return Ok(new { message = "Password updated successfully." });
             }
