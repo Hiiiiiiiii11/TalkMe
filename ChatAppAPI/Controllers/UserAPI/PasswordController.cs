@@ -15,7 +15,7 @@ namespace ChatAppAPI.Controllers.UserAPI
         {
             _resetService = resetService;
         }
-        [Authorize]
+
         [HttpPost("request")]
         public async Task<IActionResult> RequestReset([FromQuery] PasswordResetRequest request)
         {
@@ -33,7 +33,6 @@ namespace ChatAppAPI.Controllers.UserAPI
                 return BadRequest(new { message = "Invalid email format." });
             }
         }
-        [Authorize]
         [HttpPost("confirm")]
         public async Task<IActionResult> ConfirmReset([FromBody] ConfirmResetPasswordRequest request)
         {

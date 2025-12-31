@@ -187,6 +187,12 @@ namespace ChatApi
                         .AllowAnyMethod()
                         .AllowCredentials();
                 });
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
             });
 
 

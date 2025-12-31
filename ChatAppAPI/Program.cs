@@ -157,6 +157,13 @@ namespace ChatAppAPI
                         .AllowAnyHeader()
                         .AllowAnyMethod()
                         .AllowCredentials();
+
+                });
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
                 });
             });
 
