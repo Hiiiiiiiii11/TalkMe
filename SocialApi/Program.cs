@@ -214,6 +214,12 @@ namespace SocialApi
                         .AllowAnyMethod()
                         .AllowCredentials();
                 });
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
             });
 
 

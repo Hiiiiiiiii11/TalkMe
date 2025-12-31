@@ -43,5 +43,11 @@ namespace UserRepository.Repositories
                 .OrderByDescending(e => e.ExpiredAt)
                 .FirstOrDefaultAsync(e => e.Email == email);
         }
+        public async Task DeleteAllByEmailAsync(string email)
+        {
+            var records = _context.EmailVerifications.Where(x => x.Email == email);
+            _context.EmailVerifications.RemoveRange(records);
+            await _context.SaveChangesAsync();
+        }
     }
 }

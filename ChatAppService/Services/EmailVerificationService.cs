@@ -24,6 +24,9 @@ namespace UserService.Services
         }
         public async Task SendVerificationCodeAsync(string email)
         {
+            // ❗ XÓA OTP CŨ
+            await _emailVerificationRepository.DeleteAllByEmailAsync(email);
+
             var code = new Random().Next(100000, 999999).ToString();
 
             var verificationEmail = new EmailVerification
@@ -33,7 +36,9 @@ namespace UserService.Services
                 ExpiredAt = DateTime.UtcNow.AddMinutes(5),
                 IsVerified = false
             };
+
             await _emailVerificationRepository.AddAsync(verificationEmail);
+            await _emailVerificationRepository.SaveChangesAsync();
 
             await SendEmailAsync(email, "Email Verification Code",
                 $"Your verification code is: <b>{code}</b>. It will expire in 5 minutes.");
@@ -54,6 +59,7 @@ namespace UserService.Services
             if (verification.ExpiredAt < DateTime.UtcNow) return false; // Hết hạn
 
             await _emailVerificationRepository.MarkAsVerifiedAsync(verification);
+            await _emailVerificationRepository.SaveChangesAsync();
             return true;
         }
         public async Task<bool> IsEmailVerifiedAsync(string email)

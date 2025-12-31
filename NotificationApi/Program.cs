@@ -120,6 +120,12 @@ namespace NotificationApi
                         .AllowAnyMethod()
                         .AllowCredentials();
                 });
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
+                });
             });
             builder.Services.AddGrpc();
             var userServiceUrl = builder.Environment.IsProduction()
