@@ -119,8 +119,8 @@ namespace ChatAppAPI.Controllers.UserAPI
             }
         }
 
-        [HttpPost("search")]
-        public async Task<IActionResult> SearchUsers([FromBody] SearchUserRequest request)
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchUsers([FromQuery]SearchUserRequest request)
         {
             try
             {
