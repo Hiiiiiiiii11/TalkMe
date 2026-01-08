@@ -22,7 +22,7 @@ namespace SocialRepository.Repositories
         {
             var query = _context.Comments
                 .AsNoTracking()
-                .Where(c => c.PostId == postId);
+                .Where(c => c.PostId == postId && c.ParentCommentId == null);
 
             if (before.HasValue)
             {

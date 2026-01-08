@@ -15,6 +15,7 @@ namespace SocialRepository.Model.Response
         public Guid PostId { get; set; }
         public string UserDisplayName { get; set; }
         public string UserAvatarUrl { get; set; }
+        public Guid? ParentCommentId { get; set; }
 
         public string Content { get; set; }
         public DateTime CreatedAt { get; set; }

@@ -176,7 +176,7 @@ namespace SocialService.Services
                 // Mặc định ban đầu
                 UserDisplayName = "Loading...",
                 UserAvatarUrl = "",
-
+                ParentCommentId = comment.ParentCommentId ?? null,
                 Content = comment.Content,
                 CreatedAt = comment.CreatedAt,
                 UpdatedAt = comment.UpdatedAt,
