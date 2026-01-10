@@ -19,13 +19,15 @@ namespace SocialService.Services
         private readonly IPostMediaRepository _postMediaRepository;
         private readonly IMediaUploadService _mediaUploadService;
         private readonly IGrpcClient _grpcClient;
+        private readonly ICurrentUserService _currentUserService;
 
-        public PostService(IPostRepository postRepository, IPostMediaRepository postMediaRepository, IMediaUploadService mediaUploadService, IGrpcClient grpcClient   )
+        public PostService(IPostRepository postRepository, IPostMediaRepository postMediaRepository, IMediaUploadService mediaUploadService, IGrpcClient grpcClient , ICurrentUserService currentUserService)
         {
             _postRepository = postRepository;
             _postMediaRepository = postMediaRepository;
             _mediaUploadService = mediaUploadService;
             _grpcClient = grpcClient ;
+            _currentUserService = currentUserService;
         }
         public async Task<PostResponse> CreatePostAsync(Guid userId, PostRequest request)
         {
@@ -326,6 +328,7 @@ namespace SocialService.Services
         }
         private PostResponse MapToResponse(Posts post)
         {
+            var currentUserId = _currentUserService.Id;
             return new PostResponse
             {
                 Id = post.Id,
@@ -340,6 +343,9 @@ namespace SocialService.Services
                 TotalLikes = post.TotalLikes,
                 TotalComments = post.TotalComments,
                 CreatedAt = post.CreatedAt,
+                IsLiked = post.Likes != null
+                          && currentUserId.HasValue
+                          && post.Likes.Any(l => l.UserId == currentUserId.Value),
                 UpdatedAt = post.UpdatedAt,
                 Medias = post.PostMedias?.Select(m => new PostMediaResponse
                 {
