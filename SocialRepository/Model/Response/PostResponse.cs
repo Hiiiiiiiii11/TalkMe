@@ -11,6 +11,7 @@ namespace SocialRepository.Model.Response
         public string UserAvatar { get; set; }
         public string Content { get; set; }
         public int PrivacyLevel { get; set; }
+        public bool IsLiked { get; set; }
 
         // Chỉ trả về số lượng, không trả về list object
         public int TotalLikes { get; set; }

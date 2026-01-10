@@ -29,7 +29,8 @@ namespace SocialRepository.Repositories
         {
             var query = _context.Posts
                 .AsNoTracking()
-                .Include(p => p.PostMedias) // Load ảnh/video
+                .Include(p => p.PostMedias)
+                .Include(p => p.Likes)// Load ảnh/video
                 .AsQueryable();
 
             // 1. Lọc theo User (Nếu đang xem trang cá nhân)
