@@ -21,6 +21,7 @@ namespace SocialRepository.Repositories
         {
             return await _context.Posts
                 .Include(p => p.PostMedias)
+                .Include(p => p.Likes)
                 .FirstOrDefaultAsync(p => p.Id == id);
         }
 
