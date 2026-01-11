@@ -13,7 +13,7 @@ namespace NotificationService.Services
     {
         Task<IEnumerable<NotificationResponse>> GetAllNotificationsAsync();
         Task<NotificationResponse?> GetNotificationByIdAsync(Guid id);
-        Task<List<NotificationResponse>> GetNotificationsByUserIdAsync(Guid userId);
+        Task<List<NotificationMessageResponse>> GetNotificationsByUserIdAsync(Guid userId);
         Task<NotificationMessageResponse?> GetNotificationMessageByIdAsync(Guid id);
         Task<List<NotificationMessageResponse>> GetNotificationsMessageByUserIdAsync(Guid userId);
         Task<List<NotificationMessageResponse>> GetNotificationsSystemByUserIdAsync(Guid userId);
