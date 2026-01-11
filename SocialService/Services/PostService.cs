@@ -139,7 +139,7 @@ namespace SocialService.Services
 
         public async Task<PostResponse> GetPostByIdAsync(Guid postId)
         {
-           var post = await _postRepository.GetByIdAsync(postId);
+           var post = await _postRepository.GetByIdWithMediaAsync(postId);
             if (post == null)
             {
                 return null;
