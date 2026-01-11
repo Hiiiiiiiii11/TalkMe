@@ -118,6 +118,7 @@ namespace ChatService.Services
                             UserId = userId,
                             JoinAt = DateTime.UtcNow
                         });
+                        newUserIds.Add(userId);
                     }
                 }
             }
