@@ -45,15 +45,7 @@ namespace NotificationService.Services
             await _notificationRepository.AddAsync(notification);
             await _notificationRepository.SaveChangesAsync();
 
-            return new NotificationResponse
-            {
-                Id = notification.Id,
-                UserId = notification.UserId,
-                Type = notification.Type,
-                DataJson = notification.DataJson,
-                CreatedAt = notification.CreatedAt,
-                IsRead = notification.IsRead,
-            };
+            return notification.ToResponse();
         }
 
 
@@ -231,7 +223,7 @@ namespace NotificationService.Services
             await _notificationRepository.AddAsync(notification);
             await _notificationRepository.SaveChangesAsync();
 
-            return MapToMessageResponse(notification, senderName, senderAvatar, messageReply.Content, messageReply.SentAt);
+            return notification.ToMessageResponse(senderName, senderAvatar);
         }
 
         private async Task<NotificationMessageResponse> CreateGroupMessageNotificationAsync(
@@ -281,7 +273,7 @@ namespace NotificationService.Services
             await _notificationRepository.SaveChangesAsync();
             if (lastNotification == null) return new NotificationMessageResponse();
 
-            return MapToMessageResponse(lastNotification, conversationReply.Name, conversationReply.AvartarGroup, messageReply.Content, messageReply.SentAt);
+            return lastNotification.ToMessageResponse(conversationReply.Name, conversationReply.AvartarGroup);
         }
 
 
@@ -304,10 +296,10 @@ namespace NotificationService.Services
             return notification?.ToResponse();
         }
 
-        public async Task<List<NotificationResponse>> GetNotificationsByUserIdAsync(Guid userId)
+        public async Task<List<NotificationMessageResponse>> GetNotificationsByUserIdAsync(Guid userId)
         {
             var notifications = await _notificationRepository.GetByUserIdAsync(userId);
-            return notifications.Select(n => n.ToResponse()).ToList();
+            return await MapNotificationsToResponseAsync(notifications);
         }
         public async Task MarkAsReadAsync(Guid id)
         {
@@ -346,36 +338,58 @@ namespace NotificationService.Services
         public async Task<List<NotificationMessageResponse>> GetNotificationsMessageByUserIdAsync(Guid userId)
         {
             var notifications = await _notificationRepository.GetByUserIdAsync(userId);
-            return notifications
-                .Where(n => n.Type == "Message")
-                .Select(n => n.ToMessageResponse())
-                .ToList();
+            var messageNotifications = notifications.Where(n => n.Type == "Message").ToList();
+
+            // Gọi hàm xử lý chung
+            return await MapNotificationsToResponseAsync(messageNotifications);
         }
         public async Task<List<NotificationMessageResponse>> GetNotificationsSystemByUserIdAsync(Guid userId)
         {
             var notifications = await _notificationRepository.GetByUserIdAsync(userId);
-            return notifications
-                .Where(n => n.Type == "System")
-                .Select(n => n.ToMessageResponse())
-                .ToList();
+            var systemNotifications = notifications.Where(n => n.Type == "System").ToList();
+
+            // Gọi hàm xử lý chung
+            return await MapNotificationsToResponseAsync(systemNotifications);
         }
-        private NotificationMessageResponse MapToMessageResponse(Notification n, string convName, string convAvatar, string content, string sentAt)
+
+        private async Task<List<NotificationMessageResponse>> MapNotificationsToResponseAsync(IEnumerable<Notification> notifications)
         {
-            return new NotificationMessageResponse
+            var tasks = notifications.Select(async n =>
             {
-                Id = n.Id,
-                UserId = n.UserId,
-                ConversationId = n.ConversationId,
-                MessageId = n.MessageId,
-                Type = n.Type,
-                DataJson = n.DataJson,
-                CreatedAt = n.CreatedAt,
-                IsRead = n.IsRead,
-                ConversationName = convName,
-                ConversationAvatar = convAvatar,
-                MessageContent = content,
-                MessageSentAt = DateTime.TryParse(sentAt, out var d) ? d : DateTime.UtcNow
-            };
+                string? fetchedName = null;
+                string? fetchedAvatar = null;
+
+                // Chỉ gọi gRPC khi cần thiết (System notification thiếu data)
+                if (n.Type == "System" && !string.IsNullOrEmpty(n.DataJson))
+                {
+                    try
+                    {
+                        using (var doc = JsonDocument.Parse(n.DataJson))
+                        {
+                            if (doc.RootElement.TryGetProperty("GroupId", out var idProp))
+                            {
+                                var groupId = idProp.GetString();
+                                if (!string.IsNullOrEmpty(groupId))
+                                {
+                                    var convResult = await _grpcClient.GetConversationByIdAsync(groupId);
+                                    if (convResult.IsSuccess && convResult.Data != null)
+                                    {
+                                        fetchedName = convResult.Data.Name;
+                                        fetchedAvatar = convResult.Data.AvartarGroup;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { /* Ignore error */ }
+                }
+
+                // Gọi Mapper và truyền dữ liệu vừa lấy được vào
+                return n.ToMessageResponse(fetchedName, fetchedAvatar);
+            });
+
+            var results = await Task.WhenAll(tasks);
+            return results.OrderByDescending(x => x.CreatedAt).ToList();
         }
     }
 }
