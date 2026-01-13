@@ -12,13 +12,10 @@ namespace ChatRepository.Repositories
     public interface IConversationRepository : IGenericRepository<Conversations>
     {
         //Task<Conversations> GetConversationByIdAsync(Guid id);
-        Task<IEnumerable<Conversations>> GetUserConversationsAsync(Guid userId);
-        //Task AddConversationAsync(Conversations conversation);
-        //Task UpdateConversationAsync(Conversations conversation);
-        //Task DeleteConversationAsync(Guid id);
-        //Task SaveChangesAsync();
-        //Task<Conversations?> GetPrivateConversationAsync(Guid userId1, Guid userId2);
-        Task<List<Conversations>> SearchConversationsAsync(Guid userId, string conversationName);
+        Task<IEnumerable<Conversations>> GetUserConversationsAsync(Guid userId, int? skip = null, int? take = null);
+
+        // Cập nhật thêm skip và take
+        Task<IEnumerable<Conversations>> SearchConversationsAsync(Guid userId, string conversationName, int? skip = null, int? take = null);
 
     }
 }

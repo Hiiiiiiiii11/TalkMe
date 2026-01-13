@@ -54,6 +54,25 @@ namespace NotificationRepository.Repositories
         {
             return await _context.Notifications.Where(m => m.UserId == userId && !m.IsRead).ToListAsync();
         }
+        public async Task<List<Notification>> GetByUserIdAsync(Guid userId, int skip, int take)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId)
+                .OrderByDescending(n => n.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
+
+        public async Task<List<Notification>> GetByTypeAsync(Guid userId, string type, int skip, int take)
+        {
+            return await _context.Notifications
+                .Where(n => n.UserId == userId && n.Type == type) // Filter System ngay tại đây
+                .OrderByDescending(n => n.CreatedAt)
+                .Skip(skip)
+                .Take(take)
+                .ToListAsync();
+        }
 
         //public async Task UpdateAsync(Notification notification)
         //{

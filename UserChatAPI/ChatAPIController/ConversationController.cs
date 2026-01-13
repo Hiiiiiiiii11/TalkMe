@@ -5,6 +5,7 @@ using ChatService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.VisualBasic;
+using Share.Models.Request;
 using Share.Services;
 
 
@@ -38,10 +39,6 @@ namespace ChatAppAPI.Controllers.ChatAPI
                 }
                 return Ok(conversation);
             }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized(new { message = "User not authenticated" });
-            }
             catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
@@ -49,7 +46,7 @@ namespace ChatAppAPI.Controllers.ChatAPI
         }
         [Authorize]
         [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetUserConversations(Guid userId)
+        public async Task<IActionResult> GetUserConversations(Guid userId, [FromQuery] PagingRequest request)
         {
             try
             {
@@ -57,12 +54,8 @@ namespace ChatAppAPI.Controllers.ChatAPI
                 {
                     return Unauthorized(new { message = "User not authenticated" });
                 }
-                var conversations = await _conversationService.GetUserConversationsAsync(userId);
+                var conversations = await _conversationService.GetUserConversationsAsync(userId,request);
                 return Ok(conversations);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized(new { message = "User not authenticated" });
             }
             catch (Exception ex)
             {
@@ -180,6 +173,25 @@ namespace ChatAppAPI.Controllers.ChatAPI
                 await _conversationService.DissolveConversationAsync(id);
 
                 return Ok(new { message = "Dissolve Conversation success" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+        [Authorize]
+        [HttpGet("search")]
+        public async Task<IActionResult> SearchConversations([FromQuery] string? searchTerm, [FromQuery] PagingRequest request)
+        {
+            try
+            {
+                if (!_currentUserService.Id.HasValue)
+                {
+                    return Unauthorized(new { message = "User not authenticated" });
+                }
+                var userId = _currentUserService.Id.Value;
+                var conversations = await _conversationService.SearchConversationsAsync(userId, searchTerm, request);
+                return Ok(conversations);
             }
             catch (Exception ex)
             {

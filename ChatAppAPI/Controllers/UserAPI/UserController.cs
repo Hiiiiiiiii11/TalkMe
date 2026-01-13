@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using UserRepository.Model.Request;
 using UserRepository.Models;
 using Share.Services;
+using Share.Models.Request;
 
 namespace ChatAppAPI.Controllers.UserAPI
 {
@@ -120,13 +121,13 @@ namespace ChatAppAPI.Controllers.UserAPI
         }
 
         [HttpGet("search")]
-        public async Task<IActionResult> SearchUsers([FromQuery]SearchUserRequest request)
+        public async Task<IActionResult> SearchUsers([FromQuery]string displayName, [FromQuery] PagingRequest request)
         {
             try
             {
-                if (string.IsNullOrEmpty(request.DisplayName))
+                if (string.IsNullOrEmpty(displayName))
                     return BadRequest(new { message = "Search term is required." });
-                var users = await _userService.SearchUsersAsync(request.DisplayName);
+                var users = await _userService.SearchUsersAsync(displayName, request);
                 return Ok(users);
             }
             catch (Exception ex)

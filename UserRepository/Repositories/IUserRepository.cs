@@ -19,7 +19,7 @@ namespace UserRepository.Repositories
         //Task UpdateAsync(User user);
         //Task DeleteAsync(Guid id);
         Task<User?> GetUserByEmailAsync(string email);
-        Task<List<User>> SearchAsync(string searchTerm);
+        Task<List<User>> SearchAsync(string searchTerm, int? skip = null, int? take = null);
         Task UnActiveUser(Guid id);
         Task ActiveUser(Guid id);
     }

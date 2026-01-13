@@ -57,11 +57,34 @@ namespace UserRepository.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
 
-        public Task<List<User>> SearchAsync(string searchTerm)
+        public async Task<List<User>> SearchAsync(string searchTerm, int? skip = null, int? take = null)
         {
-            return _context.Users
-                .Where(u => u.DisplayName.Contains(searchTerm) || u.Email.Contains(searchTerm))
-                .ToListAsync();
+            var query = _context.Users.AsQueryable();
+
+            // 1. Filter
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+            {
+                string term = searchTerm.Trim(); // Nên trim để sạch dữ liệu đầu vào
+                query = query.Where(u => u.DisplayName.Contains(term) ||
+                                         u.Email.Contains(term));
+            }
+
+            // 2. Sort (Bắt buộc phải OrderBy trước khi phân trang)
+            query = query.OrderBy(u => u.DisplayName);
+
+            // 3. Pagination logic (Chỉ áp dụng nếu tham số khác null)
+            if (skip.HasValue)
+            {
+                query = query.Skip(skip.Value);
+            }
+
+            if (take.HasValue)
+            {
+                query = query.Take(take.Value);
+            }
+
+            // 4. Execute
+            return await query.ToListAsync();
         }
 
         public Task UnActiveUser(Guid id)

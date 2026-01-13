@@ -44,15 +44,29 @@ namespace ChatRepository.Repositories
         //        .FirstOrDefaultAsync(c => c.Id == id);
         //}
 
-        public async Task<IEnumerable<Conversations>> GetUserConversationsAsync(Guid userId)
+        public async Task<IEnumerable<Conversations>> GetUserConversationsAsync(Guid userId, int? skip = null, int? take = null)
         {
-            var conversations = await _context.Conversations
-                .Include(c => c.Participants) // load participants
-                .Include(c => c.Messages)     // load messages
+            // Khởi tạo Query
+            var query = _context.Conversations
+                .Include(c => c.Participants) // Include bảng phụ
                 .Where(c => c.Participants.Any(p => p.UserId == userId))
-                .ToListAsync();
+                .OrderByDescending(c => c.CreatedAt) // Bắt buộc sắp xếp trước khi phân trang
+                .AsQueryable(); // Chuyển về IQueryable để nối chuỗi dynamic
 
-            return conversations;
+            // Áp dụng Skip nếu có giá trị
+            if (skip.HasValue)
+            {
+                query = query.Skip(skip.Value);
+            }
+
+            // Áp dụng Take nếu có giá trị
+            if (take.HasValue)
+            {
+                query = query.Take(take.Value);
+            }
+
+            // Thực thi query
+            return await query.ToListAsync();
         }
 
         //public Task SaveChangesAsync()
@@ -72,11 +86,26 @@ namespace ChatRepository.Repositories
         //    return _context.SaveChangesAsync();
         //}
 
-        public  Task<List<Conversations>> SearchConversationsAsync(Guid userId, string conversationName)
+        public async Task<IEnumerable<Conversations>> SearchConversationsAsync(Guid userId, string conversationName, int? skip = null, int? take = null)
         {
-            return _context.Conversations
-         .Where(c => c.Name == conversationName && c.Participants.Any(p => p.UserId == userId))
-         .ToListAsync();
+            var query = _context.Conversations
+                .Include(c => c.Participants)
+                .Where(c => c.Participants.Any(p => p.UserId == userId) &&
+                            c.Name.Contains(conversationName))
+                .OrderByDescending(c => c.CreatedAt)
+                .AsQueryable();
+
+            if (skip.HasValue)
+            {
+                query = query.Skip(skip.Value);
+            }
+
+            if (take.HasValue)
+            {
+                query = query.Take(take.Value);
+            }
+
+            return await query.ToListAsync();
         }
     }
 }

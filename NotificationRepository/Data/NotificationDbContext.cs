@@ -14,7 +14,14 @@ namespace NotificationRepository.Data
         public NotificationDbContext(DbContextOptions<NotificationDbContext> options)
             : base(options) { }
         public DbSet<Notification> Notifications { get; set; }
-
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder
+                    .UseLazyLoadingProxies();
+            }
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Notification>()
