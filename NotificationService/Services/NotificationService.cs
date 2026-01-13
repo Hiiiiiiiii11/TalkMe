@@ -6,6 +6,8 @@ using NotificationRepository.Models;
 using NotificationRepository.Repositories;
 using NotificationService.Mapping;
 using Share.GrpcClient;
+using Share.Helpers;
+using Share.Models.Request;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -296,9 +298,15 @@ namespace NotificationService.Services
             return notification?.ToResponse();
         }
 
-        public async Task<List<NotificationMessageResponse>> GetNotificationsByUserIdAsync(Guid userId)
+        public async Task<List<NotificationMessageResponse>> GetNotificationsByUserIdAsync(Guid userId, PagingRequest request)
         {
-            var notifications = await _notificationRepository.GetByUserIdAsync(userId);
+            // Tính toán Skip/Take
+            var (skip, take) = PaginationHelper.CalculateSkipTake(request.Page, request.PageSize);
+
+            // Gọi Repo (Repo cần cập nhật để nhận skip, take)
+            // Giả sử: GetByUserIdAsync(Guid userId, int skip, int take)
+            var notifications = await _notificationRepository.GetByUserIdAsync(userId, skip, take);
+
             return await MapNotificationsToResponseAsync(notifications);
         }
         public async Task MarkAsReadAsync(Guid id)
@@ -343,13 +351,16 @@ namespace NotificationService.Services
             // Gọi hàm xử lý chung
             return await MapNotificationsToResponseAsync(messageNotifications);
         }
-        public async Task<List<NotificationMessageResponse>> GetNotificationsSystemByUserIdAsync(Guid userId)
+        public async Task<List<NotificationMessageResponse>> GetNotificationsSystemByUserIdAsync(Guid userId, PagingRequest request)
         {
-            var notifications = await _notificationRepository.GetByUserIdAsync(userId);
-            var systemNotifications = notifications.Where(n => n.Type == "System").ToList();
+            // Tính toán Skip/Take
+            var (skip, take) = PaginationHelper.CalculateSkipTake(request.Page, request.PageSize);
 
-            // Gọi hàm xử lý chung
-            return await MapNotificationsToResponseAsync(systemNotifications);
+            // ⚠️ QUAN TRỌNG: Bạn cần thêm hàm này vào Repository để lọc "System" ngay dưới DB trước khi phân trang
+            // Nếu lấy hết về rồi mới .Where(System).Skip() ở RAM thì sẽ sai logic phân trang và chậm.
+            var notifications = await _notificationRepository.GetByTypeAsync(userId, "System", skip, take);
+
+            return await MapNotificationsToResponseAsync(notifications);
         }
 
         private async Task<List<NotificationMessageResponse>> MapNotificationsToResponseAsync(IEnumerable<Notification> notifications)

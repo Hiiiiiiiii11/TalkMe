@@ -14,6 +14,8 @@ namespace NotificationRepository.Repositories
         Task<IEnumerable<Notification>> GetAllAsynnc();
         //Task<Notification?> GetByIdAsync(Guid id);
         Task<List<Notification>> GetByUserIdAsync(Guid userId);
+        Task<List<Notification>> GetByUserIdAsync(Guid userId, int skip, int take); // Lấy tất cả có phân trang
+        Task<List<Notification>> GetByTypeAsync(Guid userId, string type, int skip, int take); // Lấy theo loại có phân trang
         //Task AddAsync(Notification notification);
         //Task UpdateAsync(Notification notification);
         //Task DeleteAsync(Guid id);

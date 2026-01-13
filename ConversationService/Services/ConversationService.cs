@@ -4,6 +4,8 @@ using ChatRepository.Models;
 using ChatRepository.Repositories;
 using GrpcService;
 using Share.GrpcClient;
+using Share.Helpers;
+using Share.Models.Request;
 using System.Net.WebSockets;
 using System.Text.Json;
 using UserService.Services;
@@ -157,10 +159,17 @@ namespace ChatService.Services
         }
 
 
-        public async Task<IEnumerable<ConversationResponse>> SearchConversationsAsync(Guid userId, string conversationName)
+        public async Task<IEnumerable<ConversationResponse>> SearchConversationsAsync(Guid userId, string conversationName, PagingRequest request)
         {
-            var conversations = await _conversationRepository.SearchConversationsAsync(userId, conversationName);
-            return await Task.WhenAll(conversations.Select(c => MapToResponse(c, userId)));
+            // Tính toán skip/take chuẩn hóa
+            var (skip, take) = PaginationHelper.CalculateSkipTake(request.Page, request.PageSize);
+
+            // Gọi Repository
+            var conversations = await _conversationRepository.SearchConversationsAsync(userId, conversationName, skip, take);
+
+            // Map Data
+            var tasks = conversations.Select(c => MapToResponse(c, userId));
+            return await Task.WhenAll(tasks);
         }
 
         public async Task UpdateConversationAsync(Guid id,ConversationUpdateRequest request, Guid adminGroupId)
@@ -200,11 +209,15 @@ namespace ChatService.Services
         //    return responses;
         //}
 
-        public async Task<IEnumerable<ConversationResponse>> GetUserConversationsAsync(Guid userId)
+        public async Task<IEnumerable<ConversationResponse>> GetUserConversationsAsync(Guid userId, PagingRequest request)
         {
-            var conversations = await _conversationRepository.GetUserConversationsAsync(userId);
+            // Tính toán skip/take chuẩn hóa
+            var (skip, take) = PaginationHelper.CalculateSkipTake(request.Page, request.PageSize);
 
-            // Xử lý song song để tăng tốc độ map
+            // Gọi Repository
+            var conversations = await _conversationRepository.GetUserConversationsAsync(userId, skip, take);
+
+            // Map Data (Song song)
             var tasks = conversations.Select(c => MapToResponse(c, userId));
             return await Task.WhenAll(tasks);
         }

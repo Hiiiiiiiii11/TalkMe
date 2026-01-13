@@ -1,4 +1,6 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using Share.Helpers;
+using Share.Models.Request;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -93,13 +95,16 @@ namespace UserService.Services
         }
 
 
-        public async Task<IEnumerable<UserInfoResponse>> SearchUsersAsync(string searchTerm)
+        public async Task<IEnumerable<UserInfoResponse>> SearchUsersAsync(string displayName, PagingRequest request)
         {
-            var users = await _userRepository.GetAllAsync();
-            return users
-                .Where(u => u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
-                         || (u.DisplayName != null && u.DisplayName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)))
-                .Select(MapToResponse);
+            // 1. Tính toán Skip/Take chuẩn hóa (Max 20 items)
+            var (skip, take) = PaginationHelper.CalculateSkipTake(request.Page, request.PageSize);
+
+            // 2. Gọi Repository (Filter & Paging thực hiện dưới DB)
+            var users = await _userRepository.SearchAsync(displayName, skip, take);
+
+            // 3. Map sang Response
+            return users.Select(MapToResponse);
         }
 
         public async Task UnActiveUser(Guid id)

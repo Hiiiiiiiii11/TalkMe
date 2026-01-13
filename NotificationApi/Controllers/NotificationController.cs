@@ -3,6 +3,7 @@ using NotificationRepository.Model.Request;
 using NotificationRepository.Model.Response;
 using NotificationRepository.Models;
 using NotificationService.Services;
+using Share.Models.Request;
 using Share.Services;
 
 namespace NotificationApi.Controllers
@@ -58,11 +59,11 @@ namespace NotificationApi.Controllers
             }
         }
         [HttpGet("user/{userId}")]
-        public async Task<IActionResult> GetNotificationsByUserId(Guid userId)
+        public async Task<IActionResult> GetNotificationsByUserId(Guid userId, [FromQuery] PagingRequest request)
         {
             try
             {
-                var notifications = await _notificationService.GetNotificationsByUserIdAsync(userId);
+                var notifications = await _notificationService.GetNotificationsByUserIdAsync(userId, request);
                 return Ok(notifications);
             }
             catch (UnauthorizedAccessException)
@@ -92,11 +93,11 @@ namespace NotificationApi.Controllers
 
         }
         [HttpGet("user/system/{userId}")]
-        public async Task<IActionResult> GetNotificationsSystemByUserId(Guid userId)
+        public async Task<IActionResult> GetNotificationsSystemByUserId(Guid userId, [FromQuery] PagingRequest request)
         {
             try
             {
-                var notifications = await _notificationService.GetNotificationsSystemByUserIdAsync(userId);
+                var notifications = await _notificationService.GetNotificationsSystemByUserIdAsync(userId,request);
                 return Ok(notifications);
 
             }

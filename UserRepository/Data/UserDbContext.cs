@@ -14,6 +14,14 @@ namespace UserRepository.Data
         public DbSet<EmailVerification> EmailVerifications { get; set; }
         public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
 
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder
+                    .UseLazyLoadingProxies();
+            }
+        }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
